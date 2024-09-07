@@ -1,0 +1,9 @@
+[nextcloud]
+enabled  = true
+filter  = nextcloud
+action   = smeserver-iptables[port="$port",protocol=tcp,bantime=$bantime]
+logpath  = /home/e-smith/files/nextcloud/data/nextcloud.log
+maxretry = 3
+port = 80,443
+protocol = tcp
+

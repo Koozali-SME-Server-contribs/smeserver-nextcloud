@@ -1,0 +1,9 @@
+/home/e-smith/files/nextcloud/data/nextcloud.log {
+  compress
+  delaycompress
+  missingok
+  notifempty
+  su www www
+  create 640 www www
+}
+

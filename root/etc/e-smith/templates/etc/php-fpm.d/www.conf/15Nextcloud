@@ -1,0 +1,89 @@
+{
+ my $phpversion="81";
+ my $version="26";
+ my $search=qr/\s*'version'\s*=>\s*'([0-9]{2})\.[0-9]{1,2}.*/;
+ if ( open NC, "</usr/share/nextcloud/config/config.php") {
+  map {$version = $1 if /$search/ } <NC>;
+  close NC;
+ }
+ $phpversion="74" if $version <= 24;
+
+if ($PHP_VERSION eq $phpversion){
+  if (($nextcloud{'status'} || 'disabled') eq 'enabled'){
+    my $max_upload_size = ($nextcloud{MaxUploadSize} || '4096');
+    $max_upload_size .= 'M' if ($max_upload_size =~ m/^\d+$/);
+    my $memory_limit = ($nextcloud{MemoryLimit} || '512M');
+    $memory_limit .= 'M' if ($memory_limit =~ m/^\d+$/);
+    my $open_basedir= $nextcloud{PHPBaseDir} || '';
+    $open_basedir = "/usr/share/nextcloud:/var/lib/nextcloud:/var/log/nextcloud.log:/var/lib/php/nextcloud:/home/e-smith/files/nextcloud:/dev/urandom:/proc/meminfo:/usr/share/GeoIP/GeoLite2-Country.mmdb:/proc/cpuinfo:$open_basedir";
+    my $id = 'nextcloud';
+    my $max_children = $nextcloud{'PHPmaxChildren'} || 20;
+    my $min_spare_servers = $nextcloud{'PHPminServers'} || 4;
+    my $start_servers = $nextcloud{'PHPstartServers'} || 6;
+    my $max_spare_servers = $nextcloud{'PHPmaxServers'} || 8;
+    my $max_requests = $nextcloud{'PHPmaxRequests'} || 1000;
+    my $opcacheBuff = $nextcloud{'opcache.interned_strings_buffer'} || 64;
+    my $opcacheMem = $nextcloud{'opcache.memory_consumption'} || 512;
+    my $opcacheAccFiles = $nextcloud{'opcache.max_accelerated_files'} || 65406;
+    $min_spare_servers = ( $min_spare_servers > $max_spare_servers ) ? printf("%.0f",$max_spare_servers/2) : $min_spare_servers;
+    $start_servers = ( $start_servers > $max_spare_servers ) ? printf("%.0f", $max_spare_servers /2 +  $min_spare_servers/2  ) : $start_servers;
+
+    $OUT .=<<_EOF;
+
+[php$PHP_VERSION-$id]
+user = www
+group = www
+listen.owner = root
+listen.group = www
+listen.mode = 0660
+listen = /var/run/php-fpm/php$PHP_VERSION-$id.sock
+pm = dynamic
+pm.max_children = $max_children
+pm.start_servers = $start_servers
+pm.min_spare_servers = $min_spare_servers
+pm.max_spare_servers = $max_spare_servers
+pm.max_requests = $max_requests
+php_admin_value[sys_temp_dir] = /var/lib/php/$id/tmp
+php_admin_value[session.save_path] = /var/lib/php/$id/session
+php_admin_value[session.gc_maxlifetime] = 86400
+php_admin_value[upload_tmp_dir] = /var/lib/php/$id/tmp
+php_admin_value[error_log] = /var/log/php/$id/error.log
+slowlog = /var/log/php/nextcloud/slow.log
+php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f php@{ $DomainName }
+php_admin_flag[display_errors] = off
+php_admin_flag[log_errors] = on
+php_admin_value[error_log] = syslog
+php_admin_value[memory_limit] = $memory_limit
+php_admin_value[max_execution_time] = 3600
+php_admin_value[post_max_size] = $max_upload_size
+php_admin_value[upload_max_filesize] = $max_upload_size
+php_admin_value[disable_functions] = system, show_source, symlink, dl, passthru 
+php_admin_value[open_basedir] = $open_basedir
+php_admin_flag[allow_url_fopen] = on
+php_admin_flag[file_upload] = on
+php_admin_flag[session.cookie_httponly] = on
+php_admin_flag[allow_url_include] = off
+php_admin_value[session.save_handler] = files
+php_admin_flag[output_buffering] = off
+
+; Set opcache settings 
+;php_value[opcache.enable]=1 ;if already set in php.d/20-opcache.ini will issue warning
+; we disable file caching as it crashes opcache on php81 (/var/lib/php/$id/opcache)
+; will only slow on php restart as it needs cache rebuilding instead of loading the file cache.
+php_value[opcache.file_cache]  = 
+php_value[opcache.enable_cli]  = 1
+php_value[opcache.interned_strings_buffer]  = $opcacheBuff
+php_value[opcache.max_accelerated_files]  = $opcacheAccFiles
+php_value[opcache.memory_consumption]  = $opcacheMem
+php_value[opcache.save_comments]  = 1
+php_value[opcache.revalidate_freq]  = 1
+php_value[opcache.jit] = off
+_EOF
+
+  }
+  else{
+    $OUT .= '; Nextcloud is disabled';
+  }
+} 
+}
+

@@ -1,0 +1,104 @@
+{
+my $access = $nextcloud{'access'} || 'private';
+my $allow = ($access eq 'public')?'all granted':"ip $localAccess $externalSSLAccess";
+my $authtype = $nextcloud{'Authentication'} || 'none';
+
+my $alias = (($nextcloud{'AliasOnPrimary'} || 'enabled') eq 'enabled') ?
+    'Alias /nextcloud /usr/share/nextcloud' : '';
+
+my $maxupload = $nextcloud{'MaxUploadSize'} || '1024';
+my $maxpost = $maxupload+1;
+$maxupload .= 'M';
+$maxpost .= 'M';
+
+my $auth = '';
+if ($authtype eq 'http'){
+    $auth =<<'EOF';
+    <FilesMatch "^(admin|rest)\.php">
+        SSLRequireSSL on
+        AuthName "nextcloud"
+        AuthType Basic
+        AuthBasicProvider external
+        AuthExternal pwauth
+        Require valid-user
+    </FilesMatch>
+EOF
+}
+
+if ($nextcloud{'status'} eq 'enabled'){
+
+if ((exists $php{status} and $php{status} eq "enabled") and $phpModule eq "enabled")
+  {
+  my $php =<<_EOF;
+    AddType application/x-httpd-php .php
+    php_admin_flag file_upload On
+    php_admin_flag magic_quotes Off
+    php_admin_flag magic_quotes_gpc Off
+    php_admin_value upload_max_filesize $maxupload
+    php_admin_value post_max_size $maxpost
+    php_admin_value memory_limit 512M
+    php_admin_flag output_buffering Off
+    php_admin_value max_execution_time 0
+    php_admin_value upload_tmp_dir /var/lib/nextcloud/tmp
+    php_admin_value session.save_path /var/lib/nextcloud/tmp
+    php_admin_value session.gc_maxlifetime 86400
+    php_admin_value open_basedir /usr/share/nextcloud:/var/lib/nextcloud:/var/log/nextcloud.log:/var/lib/php/nextcloud:/home/e-smith/files/nextcloud:/dev/urandom:/proc/meminfo
+_EOF
+}
+  if ($fastcgi_mod eq 'mod_proxy_fcgi'){
+    my $phpversion="81";
+    my $version="26";
+    my $search=qr/\s*'version'\s*=>\s*'([0-9]{2})\.[0-9]{1,2}.*/;
+    if ( open NC, "</usr/share/nextcloud/config/config.php") {
+       map {$version = $1 if /$search/ } <NC>;
+       close NC;
+    }
+    $phpversion="74" if $version <= 24;
+
+    $php =<<"_EOF";
+     <FilesMatch \\.php\$>
+         SetHandler "proxy:unix:/var/run/php-fpm/php${phpversion}-nextcloud.sock|fcgi://localhost"
+     </FilesMatch>
+_EOF
+  }
+
+my $config =<<_EOF;
+  <Directory "/usr/share/nextcloud">
+    Options +FollowSymLinks
+    AllowOverride All
+$php
+    Require $allow
+$auth
+
+    <IfModule mod_dav.c>
+      Dav off
+    </IfModule>
+
+    SetEnv HOME /usr/share/nextcloud
+    SetEnv HTTP_HOME /usr/share/nextcloud
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=\$1
+  </Directory>
+
+  <Directory "/home/e-smith/files/nextcloud/data/">
+    # just in case if .htaccess gets disabled
+    Require all denied
+  </Directory>
+_EOF
+
+
+$OUT .=<<"END"
+# nextcloud Configuration
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=15552000"
+</IfModule>
+$alias
+
+$config
+
+END
+}
+else{
+    $OUT .= "# nextcloud is disabled\n";
+}
+}
+

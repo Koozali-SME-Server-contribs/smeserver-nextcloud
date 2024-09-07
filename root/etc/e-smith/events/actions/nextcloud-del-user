@@ -1,0 +1,97 @@
+#!/usr/bin/perl -w
+
+#----------------------------------------------------------------------
+# copyright (C) 2018 Koozali SME Server Foundation
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#               
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#               
+#----------------------------------------------------------------------
+
+
+package esmith;
+
+use strict;
+use Errno;
+use esmith::ConfigDB;
+use JSON;
+
+my $conf = esmith::ConfigDB->open_ro
+    or die "Could not open Config DB";
+
+
+sub OCCr
+{
+    my $params = join(" ", @_);
+    my $json =`TERM=dumb /usr/bin/occ $params` ;
+    return $json;
+}
+
+sub listLocalMounts
+{
+  my %localmounts;
+  my $json = JSON->new->allow_nonref->convert_blessed->escape_slash;
+  my $result = $json->decode(OCCr " files_external:list --output json");
+
+ for my $report ( @{$result} ) {
+        next unless ( $report->{'storage'} =~ m/Local$/ || $report->{'storage'} =~ m/SMB$/ ) ;
+        $localmounts{$report->{'mount_id'}}{'mount_point'}=$report->{mount_point};
+        $localmounts{$report->{'mount_id'}}{'datadir'}=$report->{'configuration'}->{'datadir'};
+        $localmounts{$report->{'mount_id'}}{'applicable_groups'}=$report->{'applicable_groups'};
+        $localmounts{$report->{'mount_id'}}{'applicable_users'}=$report->{'applicable_users'};
+        $localmounts{$report->{'mount_id'}}{'storage'}= ( $report->{'storage'} =~ m/Local$/ ) ? "local" : "smb";
+        # for SMB
+        $localmounts{$report->{'mount_id'}}{'share'} = $report->{'configuration'}->{'share'};
+        $localmounts{$report->{'mount_id'}}{'host'} = $report->{'configuration'}->{'host'};
+ }
+ return %localmounts;
+}
+
+sub listUsers
+{
+  my %NCusers;
+  my $json = JSON->new->allow_nonref->convert_blessed->escape_slash;
+  my $result = $json->decode(OCCr " user:list --output json");
+  for my $key (keys  %$result){
+        my $name = $result->{$key};
+        next unless $name =~ m/\((.*)\)$/;
+        my $uid = $1 if $name =~ /\((.*)\)$/;
+        $NCusers{$uid}=$key;
+  } 
+  return %NCusers;
+}
+
+my $event = $ARGV [0];
+my $userName = $ARGV [1];
+my %NCusers= listUsers;
+my %localmounts = listLocalMounts;
+my $x = 0; # exit value
+
+#------------------------------------------------------------
+# Delete the Nextcloud account.
+#------------------------------------------------------------
+
+die "Username argument missing." unless defined ($userName);
+
+my $id = $NCusers{$userName} || "";
+
+# delete user home access
+my @matching_keys = grep { defined $localmounts{$_}{'host'} && $localmounts{$_}{'host'} =~ m/localhost$/  && $localmounts{$_}{'share'} =~ m/$userName$/} keys %localmounts;
+while (my $bad = pop @matching_keys) {
+  system("TERM=dumb /usr/bin/occ files_external:delete -y $bad ") == 0
+    or ( $x = 255 ,  warn "Failed to delete (nextcloud) account $userName : $id .\n" );
+
+}
+
+# delete user
+system("TERM=dumb /usr/bin/occ user:delete -y $id ") == 0
+ or ( $x = 255 ,  warn "Failed to delete (nextcloud) account $userName : $id .\n" ) if ($id ne "");
+
+exit($x);

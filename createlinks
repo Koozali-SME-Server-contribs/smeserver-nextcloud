@@ -1,0 +1,74 @@
+#!/usr/bin/perl -w
+use esmith::Build::CreateLinks  qw(:all);
+
+event_actions("nextcloud-update", qw(
+  nextcloud-conf 04
+  nextcloud-occ-conf 30
+));
+
+event_templates("nextcloud-update", qw(
+  /etc/httpd/conf/httpd.conf
+  /etc/opt/remi/php74/php.d/20-opcache.ini
+  /etc/opt/remi/php81/php.d/20-opcache.ini
+  /etc/crontab
+  /etc/opt/remi/php74/php-fpm.d/www.conf
+  /etc/opt/remi/php81/php-fpm.d/www.conf
+));
+
+event_services("nextcloud-update", qw(
+  httpd-e-smith sigusr1
+  php74-php-fpm reload-or-restart
+  php81-php-fpm reload-or-restart
+));
+
+event_actions("nextcloud-save", qw(
+  nextcloud-occ-conf 30
+));
+
+event_actions("user-delete", qw(
+  nextcloud-del-user 60
+  ));
+
+foreach my $event (qw(ibay-create ibay-modify ibay-modify-files  group-create  group-delete  group-modify user-create  user-modify domain-create  domain-delete  domain-modify  share-create          share-delete          share-modify)){
+   event_link("nextcloud-occ-conf", $event, "30");
+   }
+
+foreach my $event (qw(bootstrap-console-save  console-save webapps-update post-upgrade )){
+   event_link("nextcloud-occ-conf", $event, "30");
+   
+      }
+
+my $event="smeserver-nextcloud-update";
+event_templates($event, qw(
+  /etc/httpd/conf/httpd.conf
+  /etc/opt/remi/php74/php.d/20-opcache.ini
+  /etc/opt/remi/php81/php.d/20-opcache.ini
+  /etc/crontab
+  /etc/opt/remi/php74/php-fpm.d/www.conf
+  /etc/opt/remi/php81/php-fpm.d/www.conf
+));
+
+event_services($event, qw(
+  httpd-e-smith sigusr1
+  php74-php-fpm reload-or-restart
+  php81-php-fpm reload-or-restart
+));
+# this is after service restart as it depends on installation of mariadb
+# however if we increase initial version of nextcloud >25 then we need to
+# change the default of php to 81 or re expand templates a second time
+# or web serice will fail
+event_link("nextcloud-conf", $event, "91");
+event_link("nextcloud-occ-conf", $event, "92");
+#maybe changing to
+#event_link("nextcloud-conf", $event, "91");
+#event_link("generic_template_expand", $event, "92");
+#event_link("nextcloud-occ-conf", $event, "93");
+#event_link("adjust-services", $event, "95");
+# or adding the key element in script
+
+# Backup
+use esmith::Build::Backup qw(:all);
+backup_includes("smeserver-nextcloud", qw(
+/usr/share/nextcloud/
+));
+

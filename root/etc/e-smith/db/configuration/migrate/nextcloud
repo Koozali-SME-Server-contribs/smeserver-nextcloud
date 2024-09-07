@@ -1,0 +1,16 @@
+{
+
+my $nextcloud = $DB->get('nextcloud') ||  $DB->new_record('nextcloud', {type => 'service'});
+
+my $dbpass = $nextcloud->prop('DbPassword') ||
+        $nextcloud->set_prop('DbPassword', `/usr/bin/openssl rand -base64 40 | /usr/bin/tr -c -d '[:graph:]'`);
+my $dbAdminPass = $nextcloud->prop('AdminPassword') ||
+        $nextcloud->set_prop('AdminPassword', `/usr/bin/openssl rand -base64 40 | /usr/bin/tr -c -d '[:graph:]'`);
+
+if (my $CloudDomain = $DB->get_prop_and_delete('nextcloud', 'CloudDomain')) {
+        $nextcloud->merge_props('VirtualHost', $CloudDomain);
+    }
+        
+}
+
+

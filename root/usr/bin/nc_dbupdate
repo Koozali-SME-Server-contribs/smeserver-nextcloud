@@ -1,0 +1,5 @@
+#!/bin/bash
+
+/usr/bin/occ  db:add-missing-indices
+/usr/bin/occ  db:add-missing-primary-keys
+/usr/bin/occ  db:convert-filecache-bigint

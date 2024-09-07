@@ -1,0 +1,41 @@
+#
+# 28nextcloud
+#
+
+{
+   my $CloudDomain = $nextcloud{'VirtualHost'} || 'none';#using CloudDomain, not to confuse for the template virtualHost variable
+   $OUT = '';
+    if ((${'nextcloud'}{'status'} || 'disabled') eq 'enabled' ){
+            
+        if (($port eq "80") && ($haveSSL eq 'yes')){
+            $OUT .= "    RewriteRule ^/nextcloud(/.*|\$)    https://%{HTTP_HOST}/nextcloud\$1 [L,R=301]\n";
+        }
+	elsif ( $CloudDomain eq "none" or $CloudDomain ne $virtualHost )
+	{
+	   $OUT .= " 
+  RewriteEngine on
+  RewriteRule ^/\\.well-known/host-meta /nextcloud/public.php?service=host-meta [QSA,L]
+  RewriteRule ^/\\.well-known/host-meta\.json /nextcloud/public.php?service=host-meta-json [QSA,L]
+  #RewriteRule ^/\\.well-known/webfinger /nextcloud/public.php?service=webfinger [QSA,L]
+  RewriteRule ^/\\.well-known/webfinger /nextcloud/index.php/.well-known/webfinger [R=301,L]
+  RewriteRule ^/\\.well-known/nodeinfo /nextcloud/index.php/.well-known/nodeinfo [R=301,L]
+  RewriteRule ^/\\.well-known/carddav /nextcloud/remote.php/dav [R=301,L]
+  RewriteRule ^/\\.well-known/caldav /nextcloud/remote.php/dav [R=301,L]
+  RewriteRule ^/remote.php/dav /nextcloud/remote.php/dav [R=301,L]\n";
+	}
+        elsif ( $CloudDomain eq $virtualHost )
+        {
+           $OUT .= " 
+  RewriteEngine on
+  RewriteRule ^/\\.well-known/host-meta /public.php?service=host-meta [QSA,L]
+  RewriteRule ^/\\.well-known/host-meta\.json /public.php?service=host-meta-json [QSA,L]
+  #RewriteRule ^/\\.well-known/webfinger /public.php?service=webfinger [QSA,L]
+  RewriteRule ^/\\.well-known/webfinger /index.php/.well-known/webfinger [R=301,L]
+  RewriteRule ^/\\.well-known/nodeinfo /index.php/.well-known/nodeinfo [R=301,L]
+  RewriteRule ^/\\.well-known/carddav /remote.php/dav [R=301,L]
+  RewriteRule ^/\\.well-known/caldav /remote.php/dav [R=301,L]\n";
+        }
+
+    }
+}
+

@@ -1,0 +1,95 @@
+#!/bin/bash
+
+# does /usr/share/nextcloud exists ? no: we create it from sources
+if [ ! -d /usr/share/nextcloud ]; then
+  cp -a /usr/share/nextcloud-src /usr/share/nextcloud
+fi
+
+# important configuration variables
+password=`/sbin/e-smith/db configuration getprop nextcloud DbPassword || echo "missing"`
+dbname=`/sbin/e-smith/db configuration getprop nextcloud DbName || echo "nextcloud"`
+dbuser=`/sbin/e-smith/db configuration getprop nextcloud DbUser || echo "nextcloud"`
+adminuser=`/sbin/e-smith/db configuration getprop nextcloud AdminUser || echo "admin"`
+adminpass=`/sbin/e-smith/db configuration getprop nextcloud AdminPassword ||/sbin/e-smith/db configuration getprop sysconfig SystemID  || echo "password;109"`
+
+host="localhost:/var/lib/mysql/mariadb105.sock"
+socket="--socket=/var/lib/mysql/mariadb105.sock"
+# need to check what db we are supposed to use. starting NC 21 mariadb >= 102 is needed  core is 55
+# are we fresh install or update ?
+installed=$(/usr/bin/occ status --output json |jq -r '.installed')
+# what version
+majversion=$(/usr/bin/occ status --output json |jq -r '.version'|cut -d'.' -f1)
+# is there a nextcloud db in core mariadb
+if [ "$installed" != "true" ]; then  host="localhost:/var/lib/mysql/mariadb105.sock"; socket="--socket=/var/lib/mysql/mariadb105.sock"; fi
+if [ "$installed" == "true" ]; then  host=$(occ config:system:get dbhost); socket="--socket=$(echo $host|awk -F'[:]' '{print $2}')" ; fi
+if [ "$socket" == "--socket=" ]; then  socket=""; fi
+
+# initialize grants mysql nextcloud database
+/usr/bin/mysql --defaults-file=/root/.my.cnf $socket -e "CREATE DATABASE IF NOT EXISTS $dbname;"
+/usr/bin/mysql --defaults-file=/root/.my.cnf $socket -e "grant all on $dbname.* to '$dbuser'@'localhost' identified by '$password';"
+/usr/bin/mysql --defaults-file=/root/.my.cnf $socket -e "FLUSH PRIVILEGES"
+
+res=`/usr/bin/mysql --defaults-file=/root/.my.cnf $socket -e "select count(*) from information_schema.tables where table_type = 'BASE TABLE' and table_schema = '$dbname'" | tail -n1`;
+
+if [[ $res == '0' ]]; then
+    /usr/bin/occ maintenance:install --database mysql --database-host $host  --database-name $dbname --database-user $dbuser --database-pass $password --admin-user $adminuser --admin-pass  $adminpass --data-dir /home/e-smith/files/nextcloud/data/
+
+    /usr/bin/occ app:enable user_ldap
+    # might create s01 or empty id depending on version
+    /usr/bin/occ ldap:create-empty-config 
+    # create config with id s01 if not already present
+    /usr/bin/occ ldap:show-config s01 1>/dev/null || /usr/bin/occ ldap:create-empty-config 
+    # delete config with empty id if exist
+    /usr/bin/occ ldap:delete-config '' 1>/dev/null 
+    mkdir -p /home/e-smith/files/nextcloud/skeleton/ibays
+fi
+
+mkdir -p /home/e-smith/files/nextcloud/skeleton/ibays
+/usr/bin/occ config:system:set  skeletondirectory --value="/home/e-smith/files/nextcloud/skeleton"
+#/usr/bin/occ config:system:set  templatedirectory --value=""
+
+# to satisfy code integrity check
+if [ -f /usr/share/nextcloud/.htaccess.rpmsave ]; then
+    rm -f /usr/share/nextcloud/.htaccess.rpmsave
+fi
+if [ -f /usr/share/nextcloud/.htaccess.rpmnew ]; then
+    rm -f /usr/share/nextcloud/.htaccess.rpmnew
+fi
+
+# upgrade and check integrity
+/usr/bin/occ upgrade
+/usr/bin/occ maintenance:mode --off
+/usr/bin/occ integrity:check-core
+## Catch 'Nextcloud is already latest version' message
+#if [ $? -eq 3 ]; then
+#    exit 0
+#fi
+
+# remove signup link
+/usr/bin/occ config:system:set --type=bool --value=false simpleSignUpLink.shown
+
+#set default loglevel SME 12412
+/usr/bin/occ config:system:set loglevel --value=3
+
+#Redis index File Cache
+/usr/bin/occ config:system:set  redis host --value="localhost"
+/usr/bin/occ config:system:set  redis port --value="6379"
+/usr/bin/occ config:system:set  redis timeout --value="0.0"
+/usr/bin/occ config:system:set  redis password --value=""
+/usr/bin/occ config:system:set  memcache.locking --value="\OC\Memcache\Redis"
+/usr/bin/occ config:system:set --type=bool --value=true filelocking.enabled
+
+# cron maintenance windows
+/usr/bin/occ config:system:set maintenance_window_start --type=integer --value=1
+
+#samba needed folder to put gencache.tdb
+if [ ! -d /var/www/.cache/samba ]; then
+  mkdir -p /var/www/.cache/samba
+  chown www:shared /var/www/.cache/samba
+fi
+if [ ! -d /home/e-smith/.cache/samba ]; then
+  mkdir -p /home/e-smith/.cache/samba
+  chown www:admin /home/e-smith/.cache/samba
+fi
+
+

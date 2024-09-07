@@ -1,0 +1,332 @@
+#!/usr/bin/perl
+
+use strict;
+use esmith::ConfigDB;
+use esmith::util;
+use esmith::AccountsDB;
+use JSON;
+use Array::Compare;
+
+sub OCC
+{
+    my $params = join(" ", @_);
+    system("TERM=dumb /usr/bin/occ $params 2>/dev/null");
+}
+
+sub OCCr
+{
+    my $params = join(" ", @_);
+    my $json =`TERM=dumb /usr/bin/occ $params` ;
+    $json =~ s/\s+$//;
+    return $json;
+}
+
+sub listLocalMounts
+{
+  my %localmounts;
+  my $json = JSON->new->allow_nonref->convert_blessed->escape_slash;
+  my $result = $json->decode(OCCr " files_external:list --output json");
+
+ for my $report ( @{$result} ) {
+        next unless ( $report->{'storage'} =~ m/Local$/ || $report->{'storage'} =~ m/SMB$/ ) ;
+        $localmounts{$report->{'mount_id'}}{'mount_point'}=$report->{mount_point};
+        $localmounts{$report->{'mount_id'}}{'datadir'}=$report->{'configuration'}->{'datadir'};
+        $localmounts{$report->{'mount_id'}}{'applicable_groups'}=$report->{'applicable_groups'};
+        $localmounts{$report->{'mount_id'}}{'applicable_users'}=$report->{'applicable_users'};
+        $localmounts{$report->{'mount_id'}}{'storage'}= ( $report->{'storage'} =~ m/Local$/ ) ? "local" : "smb";
+        # for SMB
+        $localmounts{$report->{'mount_id'}}{'share'} = $report->{'configuration'}->{'share'};
+        $localmounts{$report->{'mount_id'}}{'host'} = $report->{'configuration'}->{'host'};
+ }
+ return %localmounts;
+}
+
+sub listUsers
+{
+  my %NCusers;
+  my $json = JSON->new->allow_nonref->convert_blessed->escape_slash;
+  my $result = $json->decode(OCCr " user:list --output json");
+  for my $key (keys  %$result){
+        my $name = $result->{$key};
+        next unless $name =~ m/\((.*)\)$/;
+        my $uid = $1 if $name =~ /\((.*)\)$/;
+        $NCusers{$uid}=$key;
+  }
+  return %NCusers;
+}
+
+sub listGroups
+{
+  my %NCgroups;
+  my $json = JSON->new->allow_nonref->convert_blessed->escape_slash;
+  my $result = $json->decode(OCCr " group:list -i --output json");
+  for my $key (keys  %$result){
+        my $type = $result->{$key}{'backends'}[0];
+        next unless $type eq "LDAP";
+	my $subresult = $json->decode(OCCr " group:info $key --output json");
+	my $name = $subresult->{'displayName'};# not editable for this backend!
+	$NCgroups{$name}=$key;
+ }
+ return %NCgroups;
+}
+
+my $cdb = esmith::ConfigDB->open_ro();
+my $adb = esmith::AccountsDB->open_ro();
+my @ibays = $adb->ibays();
+my @users = $adb->users();
+push @users,$adb->get('admin');
+my @shares = $adb->get_all_by_prop(type => 'share' );
+my %localmounts;
+my @idOK;
+my $nextcloud = $cdb->get('nextcloud') or exit;
+my $status = $nextcloud->prop('status') || 'disabled';
+exit if $status eq "disabled";
+my $doshare = $nextcloud->prop('Shares') || 'enabled';
+push @ibays,@shares unless $doshare eq "disabled";
+my $includeI = $nextcloud->prop('IncludeIbay') || "";
+my $excludeI = $nextcloud->prop('ExcludeIbay') || "Primary";
+my @incI = split ',' , $includeI ;
+my @excI =split ',' , $excludeI;
+my $smb = $cdb->get('smb');
+$status = $smb->prop('status') || 'disabled';
+$status = $nextcloud->prop('UseSMB') || $status;
+my %NCusers;
+my %NCgroups;
+my $storage = ( $status eq "enabled" ) ? 'smb' : 'local' ;
+my $domain = $cdb->get_value('DomainName');
+my $host = $cdb->get_value('SystemName');
+my $fqdn = join('.', $host , $domain);
+my $baseDN = esmith::util::ldapBase($cdb->get_value('DomainName'));
+my $local = $cdb->get_value('LocalIP');
+my $remote = $cdb->get_value('ExternalIP') || ""; 
+my $comp1 = Array::Compare->new; 
+my $workgroup = $cdb->get_prop('smb','Workgroup');
+
+# update trusted domains
+OCC "config:system:set trusted_domains 0 --value=$fqdn";
+OCC "config:system:set trusted_domains 1 --value=$host";
+OCC "config:system:set trusted_domains 2 --value=$domain";
+OCC "config:system:set trusted_domains 3 --value=localhost";
+my $i = 4;
+OCC "config:system:set trusted_domains $i --value=$local" ; $i++;
+
+if ($cdb->get_value('SystemMode') eq "servergateway") {
+OCC "config:system:set trusted_domains $i --value=$remote" ;  $i++;};
+
+# Add extra trusted domains
+my $trusted_domains  = $cdb->get_prop('nextcloud','TrustedDomains') || '';
+foreach (split(',', $trusted_domains)) {
+    OCC "config:system:set trusted_domains $i --value=".$_;
+    $i++;
+}
+
+my $VirtualHost = $cdb->get_prop('nextcloud','VirtualHost') || '';
+OCC "config:system:set trusted_domains 99 --value=$VirtualHost" unless $VirtualHost eq "";
+
+#set local domain to send emails
+if ( ($nextcloud->prop('cliurl') ||'enabled') eq 'enabled') {
+    my $url= ($VirtualHost eq "")? "$domain/nextcloud" : $VirtualHost;
+    OCC "config:system:set overwrite.cli.url --value 'https://$url'"
+}
+
+# enable files_external and allow auto refresh
+OCC "app:enable files_external";
+OCC "config:system:set filesystem_check_changes --value=1";
+
+# set memcache
+OCC "config:system:set memcache.local --value='\\OC\\Memcache\\APCu'";
+
+# Update user authentication
+
+#my $sssd = new NethServer::SSSD();
+#my $quotedBindPass = $sssd->bindPassword();
+#$quotedBindPass =~ s/\'/\\'/g;
+#$quotedBindPass =~ s/\$/\\\$/g;
+    OCC "ldap:set-config s01 ldapHost 'localhost'";
+    OCC "ldap:set-config s01 ldapPort 389";
+#    OCC "ldap:set-config s01 ldapAgentName '" . $sssd->bindDN() . "'";
+#    OCC "ldap:set-config s01 ldapAgentPassword '$quotedBindPass'";
+    OCC "ldap:set-config s01 ldapBase ".$baseDN;
+    OCC "ldap:set-config s01 ldapBaseGroups ou=Groups,$baseDN";
+    OCC "ldap:set-config s01 ldapBaseUsers ou=Users,$baseDN";
+
+    OCC "ldap:set-config s01 ldapGroupDisplayName cn";
+    OCC "ldap:set-config s01 ldapGroupFilter '(&(|(objectclass=posixGroup)))'";
+    OCC "ldap:set-config s01 ldapGroupFilterObjectclass posixGroup";
+    OCC "ldap:set-config s01 ldapGroupMemberAssocAttr memberUid";
+    OCC "ldap:set-config s01 ldapLoginFilter '(&(|(objectclass=inetOrgPerson))(|(uid=%uid)(|(mail=%uid))))'";
+    OCC "ldap:set-config s01 ldapLoginFilterEmail 1";
+    OCC "ldap:set-config s01 ldapLoginFilterMode 0";
+    OCC "ldap:set-config s01 ldapLoginFilterUsername 1";
+    OCC "ldap:set-config s01 ldapUserDisplayName cn";
+    OCC "ldap:set-config s01 ldapUserDisplayName2 uid";
+    OCC "ldap:set-config s01 ldapUserFilter '(|(objectclass=inetOrgPerson))'";
+    OCC "ldap:set-config s01 ldapUserFilterObjectclass inetOrgPerson";
+    OCC "ldap:set-config s01 ldapEmailAttribute mail";
+    OCC "ldap:set-config s01 useMemberOfToDetectMembership 0";
+    OCC "ldap:set-config s01 ldapConfigurationActive 1";
+    OCC "ldap:set-config s01 turnOffCertCheck 1";
+    # changes to use username in place of ldap uuid as id
+    OCC "ldap:set-config s01 ldapExpertUUIDGroupAttr cn";
+    OCC "ldap:set-config s01 ldapExpertUUIDUserAttr uid";
+    OCC "ldap:set-config s01 ldapExpertUsernameAttr uid";
+    # test new config to make it available, and sync user/groups
+    OCC "ldap:test-config s01";
+    %NCusers= listUsers;
+    %NCgroups= listGroups;
+    #my $totrash = OCCr "group:list";
+
+# set ibays shares 
+foreach ( @ibays) {
+  my $group = $_->prop('Group') ||'';
+  my $key =  $_->key;
+  #print "Configuring file repo :  $key\n";
+  my $id = "";
+  my $typ = $_->prop('type');
+  my @wgroups = split(',', $_->prop('WriteGroups')||'');
+  my @rgroups = split(',', $_->prop('ReadGroups')||'');
+  my @groups ;
+  push @groups, @rgroups,@wgroups, split(',',$group); 
+  my @rusers = split(',', $_->prop('ReadUsers')||'');
+  my @wusers = split(',', $_->prop('WriteUsers')||'');
+  my @Users;
+  push @Users,@wusers,@rusers;
+  my @uUsers ;
+  for (@Users)  { push  @uUsers, $NCusers{$_}; } ;
+  # next if includeI not empty and if not in includeI
+  next  unless (scalar(@incI) == 0 || grep(/^$key$/i, @incI) );
+  # next if in excludeI
+  next  if (grep(/^$key$/i, @excI) );
+
+  # get existing mount
+  %localmounts = listLocalMounts; 
+  # search for our current one
+  my @matching_keys = grep { $localmounts{$_}{'mount_point'} =~ m/ibays\/$key$/ &&  $localmounts{$_}{'storage'} eq $storage } keys %localmounts;
+
+  if (scalar(@matching_keys) == 0) {
+   print "Configuring file repo :  $key\n";
+   #if none create
+   if ($storage eq "smb") {
+     $id = OCCr "files_external:create -c share=$key -c host=localhost  -c domain=$workgroup -c root='' -c show_hidden=false -c check_acl=false -c timeout='' 'ibays/$key' smb password::logincredentials --output json";
+   } else {
+     $id = OCCr "files_external:create -c datadir=/home/e-smith/files/$typ/$key 'ibays/$key'  local null::null  --output json";
+   }
+   for $group (@groups) {
+	$group = $NCgroups{$group} || next;
+	print "  adding group $group to file repo $id\n"; 
+   	OCC "files_external:applicable --add-group $group $id --output json";
+   }
+   for my $u (@uUsers) {
+	print "  adding user $u to file repo $id\n";
+        OCC "files_external:applicable --add-user $u $id  --output json" ;
+   }
+   push @idOK,$id;
+   print "created $typ $key : $id\n";
+   next;
+  }
+  if (scalar(@matching_keys) > 1) {
+    #if more than 1 delete all but older
+    print "more than one $key, deleting the latest, keeping first\n";
+    while (scalar(@matching_keys) > 1){
+    my $bad = pop @matching_keys;
+    OCC "files_external:delete $bad -y";
+   }
+  }
+
+  #if one: update if necessary
+  $id = pop @matching_keys;
+  my @a = sort(@{$localmounts{$id}{'applicable_groups'}} );
+  my @b = sort(@groups);
+  my @ua = sort(@{$localmounts{$id}{'applicable_users'}} );
+  my @ub = sort(@uUsers);
+  if ( ! $comp1->compare(\@ua, \@ub)  || ! $comp1->compare(\@a, \@b) ) {
+    print "updating $key\n";
+    OCC "files_external:applicable --remove-all $id --output json";
+    for $group (@groups) {
+	$group = $NCgroups{$group} || next;
+    	OCC "files_external:applicable --add-group $group $id --output json" ;
+    }
+    for my $u (@uUsers) {
+        OCC "files_external:applicable --add-user $u $id --output json" ;
+    }
+
+  }
+  push @idOK,$id;
+}
+
+
+#remove ibays that exist not anymore
+%localmounts = listLocalMounts;
+my %params = map { $_ => 1 } @idOK;
+for my $key (keys  %localmounts){
+  ## TODO : adapt if SMB and if changing from one to the other.
+  if( $localmounts{$key}{'mount_point'} =~ m/ibays\/.*$/  && ! exists($params{$key})) {
+    my $mount= $localmounts{$key}{'mount_point'};
+    print "delete $key : $mount\n";
+    OCC "files_external:delete -y $key ";
+  }
+}
+
+
+# now we could mount home folder for each user using samba
+foreach (@users) {
+  my $key =  $_->key;
+  my $id = "";
+  my $user = $NCusers{$key};
+  print "Configuring user $user ($key)\n";
+  # in case user not already know by NC, skip
+  # normally not necessary, thanks to LDAP!!
+  next if ($user eq "");
+  # let's create the root "ibays" folder to mount every ibays in nextcloud user space
+  my ($login,$pass,$uid,$gid) = getpwnam("www");
+  my $idir = "/home/e-smith/files/nextcloud/data/$user";
+  unless ( !-d $idir || !-d "$idir/files" || -d "$idir/files/ibays")
+  {  
+        mkdir "$idir/files/ibays", 0770;
+        print "  created $idir/files/ibays\n";
+  }
+  # we do this on every turn in case it was wrong
+  chown $uid, $gid,"$idir/files/ibays";
+  chmod 0770, "$idir/files/ibays"; 
+  # we proceed next only if we want the user homes
+  next unless ($status eq "enabled");
+  # get existing mount
+  %localmounts = listLocalMounts;
+  # search for our current one
+  my @matching_keys = grep { $localmounts{$_}{'host'} =~ m/localhost$/  && $localmounts{$_}{'share'} =~ m/^$key$/} keys %localmounts;
+
+  # if none create
+  if (scalar(@matching_keys) == 0) {
+   #if none create
+   $id = OCCr "files_external:create -c share=$key -c host=localhost -c domain=$workgroup -c root='' -c show_hidden=false -c check_acl=false -c timeout='' '$key' smb password::logincredentials --output json";
+   OCC "files_external:applicable --add-user $user $id";
+   push @idOK,$id;
+   print "  created home dir for $key $user\n";
+   next;
+  }
+
+  if (scalar(@matching_keys) > 1) {
+   #if more than 1 delete all but older
+   print "  more than one $key, deleting the latest, keeping first\n";
+   while (scalar(@matching_keys) > 1){
+    my $bad = pop @matching_keys;
+    OCC "files_external:delete -y $bad ";
+   }
+  }
+  $id = pop @matching_keys;
+  if (scalar(@{$localmounts{$id}{'applicable_groups'}}) >0 || scalar(@{$localmounts{$id}{'applicable_users'}}) >1 || scalar(@{$localmounts{$id}{'applicable_users'}}) == 0 || $localmounts{$id}{'applicable_users'}[0] ne $user) {
+    print "  updating $key\n";
+    OCC "files_external:applicable --remove-all $id";
+    OCC "files_external:applicable --add-user $user $id" ;
+  }
+  push @idOK,$id;
+
+}
+
+# set cron
+OCC "background:cron";
+ 
+# and finally let's set SME admin as admin, shall we ?
+my $admin = $NCusers{'admin'};
+OCC "group:adduser admin $admin";
+
