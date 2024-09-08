@@ -1,4 +1,4 @@
-%define release 32
+%define release 33
 %define version 1.2.0
 
 Summary: Koozali SME Server Nextcloud configuration
@@ -11,11 +11,11 @@ Source: %{name}-%{version}.tar.xz
 BuildArch: noarch
 URL: https://www.nextcloud.com 
 
-BuildRequires: e-smith-devtools
+BuildRequires: smeserver-devtools
 
 Requires: nextcloud-src >= 26.0.1
-Requires: e-smith-apache
-Requires: e-smith-mysql
+Requires: smeserver-apache
+Requires: smeserver-mysql
 Requires: smeserver-webapps-common
 Requires: smeserver-php >= 3.0.0-15
 Requires: samba-client
@@ -40,7 +40,7 @@ Requires: php81-php-redis
 Requires: smeserver-redis
 Requires: jq
 Requires: smeserver-mariadb105
-Requires: e-smith-apache >= 2.6.0-19
+Requires: smeserver-apache >= 2.6.0-19
 Requires: smeserver-php >= 3.0.0-43
 
 %description
@@ -79,6 +79,9 @@ cat %{name}-%{version}-filelist
 
 
 %changelog
+* Sun Sep 08 2024 fix-e-smith-pkg.sh by Trevor Batley <trevor@batley.id.au> 1.2.0-33.sme
+- Fix e-smith references in smeserver-nextcloud [SME: 12732]
+
 * Sat Sep 07 2024 cvs2git.sh aka Brian Read <brianr@koozali.org> 1.2.0-32.sme
 - Roll up patches and move to git repo [SME: 12338]
 
