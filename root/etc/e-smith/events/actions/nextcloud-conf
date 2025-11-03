@@ -12,17 +12,13 @@ dbuser=`/sbin/e-smith/db configuration getprop nextcloud DbUser || echo "nextclo
 adminuser=`/sbin/e-smith/db configuration getprop nextcloud AdminUser || echo "admin"`
 adminpass=`/sbin/e-smith/db configuration getprop nextcloud AdminPassword ||/sbin/e-smith/db configuration getprop sysconfig SystemID  || echo "password;109"`
 
-host="localhost:/var/lib/mysql/mariadb105.sock"
-socket="--socket=/var/lib/mysql/mariadb105.sock"
+host="localhost:/var/lib/mysql/mysql.sock"
+socket="--socket=/var/lib/mysql/mysql.sock"
 # need to check what db we are supposed to use. starting NC 21 mariadb >= 102 is needed  core is 55
 # are we fresh install or update ?
 installed=$(/usr/bin/occ status --output json |jq -r '.installed')
 # what version
 majversion=$(/usr/bin/occ status --output json |jq -r '.version'|cut -d'.' -f1)
-# is there a nextcloud db in core mariadb
-if [ "$installed" != "true" ]; then  host="localhost:/var/lib/mysql/mariadb105.sock"; socket="--socket=/var/lib/mysql/mariadb105.sock"; fi
-if [ "$installed" == "true" ]; then  host=$(occ config:system:get dbhost); socket="--socket=$(echo $host|awk -F'[:]' '{print $2}')" ; fi
-if [ "$socket" == "--socket=" ]; then  socket=""; fi
 
 # initialize grants mysql nextcloud database
 /usr/bin/mysql --defaults-file=/root/.my.cnf $socket -e "CREATE DATABASE IF NOT EXISTS $dbname;"
@@ -31,22 +27,49 @@ if [ "$socket" == "--socket=" ]; then  socket=""; fi
 
 res=`/usr/bin/mysql --defaults-file=/root/.my.cnf $socket -e "select count(*) from information_schema.tables where table_type = 'BASE TABLE' and table_schema = '$dbname'" | tail -n1`;
 
+#TODO : SME11 we need to see if db nextcloud exist
+# if not we must check if /home/e-smith/db/mariadb105/nexcloud.dump exists and import it
+# if not  we must check if /home/e-smith/db/mysql/nexcloud.dump exists and import it
+## those might be skipped if the /usr/share/nextcloud had to be created
 if [[ $res == '0' ]]; then
-    /usr/bin/occ maintenance:install --database mysql --database-host $host  --database-name $dbname --database-user $dbuser --database-pass $password --admin-user $adminuser --admin-pass  $adminpass --data-dir /home/e-smith/files/nextcloud/data/
-
-    /usr/bin/occ app:enable user_ldap
-    # might create s01 or empty id depending on version
-    /usr/bin/occ ldap:create-empty-config 
-    # create config with id s01 if not already present
-    /usr/bin/occ ldap:show-config s01 1>/dev/null || /usr/bin/occ ldap:create-empty-config 
-    # delete config with empty id if exist
-    /usr/bin/occ ldap:delete-config '' 1>/dev/null 
-    mkdir -p /home/e-smith/files/nextcloud/skeleton/ibays
+  if  [ -f /home/e-smith/db/mariadb105/nexcloud.dump ]; then
+     echo "Mariadb database empty and there was a backup in /home/e-smith/db/mariadb105/nexcloud.dump; restoring it ..."
+     /usr/bin/mysql --defaults-file=/root/.my.cnf $socket $dbname < /home/e-smith/db/mariadb105/nexcloud.dump && mv /home/e-smith/db/mariadb105/nexcloud.dump /home/e-smith/files/nextcloud/data/mariadb105-nexcloud.dump
+     /usr/bin/occ upgrade -n
+  elif [ -f /home/e-smith/db/myslq/nexcloud.dump ]; then
+     echo "Mariadb database empty and there was a backup in /home/e-smith/db/myslq/nexcloud.dump; restoring it ..."
+     /usr/bin/mysql --defaults-file=/root/.my.cnf $socket $dbname < /home/e-smith/db/mariadb105/nexcloud.dump
+     /usr/bin/occ upgrade -n
+  else  
+      echo "Fresh install detected, starting occ maintenance:install procedure..."
+     /usr/bin/occ maintenance:install --database mysql --database-host $host  --database-name $dbname --database-user $dbuser --database-pass $password --admin-user $adminuser --admin-pass  $adminpass --data-dir /home/e-smith/files/nextcloud/data/
+    
+     /usr/bin/occ app:enable user_ldap
+     # might create s01 or empty id depending on version
+     /usr/bin/occ ldap:create-empty-config 
+     # create config with id s01 if not already present
+     /usr/bin/occ ldap:show-config s01 1>/dev/null || /usr/bin/occ ldap:create-empty-config 
+     # delete config with empty id if exist
+     /usr/bin/occ ldap:delete-config '' 1>/dev/null 
+  fi
+else
+  echo "We are reinstalling Nextcloud with an already populated mariadb database"
+  if  [ -f /home/e-smith/db/mariadb105/nexcloud.dump ]; then
+      echo "if you did a SME10 to SME11 migration: /home/e-smith/db/mariadb105/nexcloud.dump has been detected !!!"
+      echo " ! check that you did not also migrate an older nextcloud.dump from SME10 mariadb 5.5 !"
+  fi
+  echo "Trying to upgrade"
+  /usr/bin/occ upgrade -n
 fi
 
 mkdir -p /home/e-smith/files/nextcloud/skeleton/ibays
 /usr/bin/occ config:system:set  skeletondirectory --value="/home/e-smith/files/nextcloud/skeleton"
 #/usr/bin/occ config:system:set  templatedirectory --value=""
+
+# prepare geoip2.phar and custom apps
+mkdir -p /usr/share/nextcloud/custom_apps/geoblocker/3rdparty/maxmind_geolite2/
+chown www:www -R /usr/share/nextcloud/custom_apps
+curl -q https://api.github.com/repos/maxmind/GeoIP2-php/releases/latest | jq -r '.assets[] | select(.name | match("phar")) | .browser_download_url' | xargs wget -q -O /usr/share/nextcloud/custom_apps/geoblocker/3rdparty/maxmind_geolite2/geoip2.phar
 
 # to satisfy code integrity check
 if [ -f /usr/share/nextcloud/.htaccess.rpmsave ]; then

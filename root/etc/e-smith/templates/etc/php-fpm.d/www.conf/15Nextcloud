@@ -1,12 +1,12 @@
 {
- my $phpversion="81";
- my $version="26";
+ my $phpversion="83";
+ my $version="30";
  my $search=qr/\s*'version'\s*=>\s*'([0-9]{2})\.[0-9]{1,2}.*/;
  if ( open NC, "</usr/share/nextcloud/config/config.php") {
   map {$version = $1 if /$search/ } <NC>;
   close NC;
  }
- $phpversion="74" if $version <= 24;
+ $phpversion="81" if $version < 30;
 
 if ($PHP_VERSION eq $phpversion){
   if (($nextcloud{'status'} || 'disabled') eq 'enabled'){
@@ -15,7 +15,7 @@ if ($PHP_VERSION eq $phpversion){
     my $memory_limit = ($nextcloud{MemoryLimit} || '512M');
     $memory_limit .= 'M' if ($memory_limit =~ m/^\d+$/);
     my $open_basedir= $nextcloud{PHPBaseDir} || '';
-    $open_basedir = "/usr/share/nextcloud:/var/lib/nextcloud:/var/log/nextcloud.log:/var/lib/php/nextcloud:/home/e-smith/files/nextcloud:/dev/urandom:/proc/meminfo:/usr/share/GeoIP/GeoLite2-Country.mmdb:/proc/cpuinfo:$open_basedir";
+    $open_basedir = "/usr/share/nextcloud:/var/lib/nextcloud:/var/log/nextcloud.log:/var/lib/php/nextcloud:/home/e-smith/files/nextcloud:/dev/urandom:/proc/meminfo:/usr/share/GeoIP/GeoLite2-Country.mmdb:/proc/cpuinfo:/usr/bin/ffmpeg:$open_basedir";
     my $id = 'nextcloud';
     my $max_children = $nextcloud{'PHPmaxChildren'} || 20;
     my $min_spare_servers = $nextcloud{'PHPminServers'} || 4;

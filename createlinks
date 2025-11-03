@@ -8,17 +8,17 @@ event_actions("nextcloud-update", qw(
 
 event_templates("nextcloud-update", qw(
   /etc/httpd/conf/httpd.conf
-  /etc/opt/remi/php74/php.d/20-opcache.ini
   /etc/opt/remi/php81/php.d/20-opcache.ini
+  /etc/opt/remi/php83/php.d/20-opcache.ini
   /etc/crontab
-  /etc/opt/remi/php74/php-fpm.d/www.conf
   /etc/opt/remi/php81/php-fpm.d/www.conf
+  /etc/opt/remi/php83/php-fpm.d/www.conf
 ));
 
 event_services("nextcloud-update", qw(
   httpd-e-smith sigusr1
-  php74-php-fpm reload-or-restart
   php81-php-fpm reload-or-restart
+  php83-php-fpm reload-or-restart
 ));
 
 event_actions("nextcloud-save", qw(
@@ -41,17 +41,17 @@ foreach my $event (qw(bootstrap-console-save  console-save webapps-update post-u
 my $event="smeserver-nextcloud-update";
 event_templates($event, qw(
   /etc/httpd/conf/httpd.conf
-  /etc/opt/remi/php74/php.d/20-opcache.ini
   /etc/opt/remi/php81/php.d/20-opcache.ini
+  /etc/opt/remi/php83/php.d/20-opcache.ini
   /etc/crontab
-  /etc/opt/remi/php74/php-fpm.d/www.conf
   /etc/opt/remi/php81/php-fpm.d/www.conf
+  /etc/opt/remi/php83/php-fpm.d/www.conf
 ));
 
 event_services($event, qw(
   httpd-e-smith sigusr1
-  php74-php-fpm reload-or-restart
   php81-php-fpm reload-or-restart
+  php84-php-fpm reload-or-restart
 ));
 # this is after service restart as it depends on installation of mariadb
 # however if we increase initial version of nextcloud >25 then we need to

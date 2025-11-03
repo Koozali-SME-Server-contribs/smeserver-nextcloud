@@ -1,8 +1,8 @@
 #!/bin/bash
-majversion=$((/usr/bin/grep -Eo "'version'.*[0-9]{2}\." /usr/share/nextcloud/config/config.php 2>/dev/null || echo "26" )|/usr/bin/grep -Eo "[0-9]{2}"|head -1)
+majversion=$((/usr/bin/grep -Eo "'version'.*[0-9]{2}\." /usr/share/nextcloud/config/config.php 2>/dev/null || echo "30" )|/usr/bin/grep -Eo "[0-9]{2}"|head -1)
 memory=$(/sbin/e-smith/config getprop nextcloud memory_limit|| echo "1024M")
-myphp=/usr/bin/php81
-if [[ $majversion -le '24' ]]; then 
-  myphp=/usr/bin/php74
+myphp=/usr/bin/php83
+if [[ $majversion -lt '30' ]]; then 
+  myphp=/usr/bin/php81
 fi
 /usr/sbin/runuser -u www -- $myphp -d memory_limit=$memory -d apc.enable_cli=1 /usr/share/nextcloud/occ "$@"

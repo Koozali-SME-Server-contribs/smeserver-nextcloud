@@ -1,4 +1,4 @@
-%define release 33
+%define release 34
 %define version 1.2.0
 
 Summary: Koozali SME Server Nextcloud configuration
@@ -13,22 +13,17 @@ URL: https://www.nextcloud.com
 
 BuildRequires: smeserver-devtools
 
-Requires: nextcloud-src >= 26.0.1
+Requires: nextcloud-src >= 29.0.1
 Requires: smeserver-apache
 Requires: smeserver-mysql
 Requires: smeserver-webapps-common
-Requires: smeserver-php >= 3.0.0-15
+Requires: smeserver-php >= 11
 Requires: samba-client
 Requires: perl-JSON
+Requires: perl-JSON-PP
 Requires: perl-Exporter-Tiny
 Requires: perl-Sub-Quote
-Requires: php74-php-smbclient
-Requires: php74-php-opcache
-Requires: php74-php-pecl-apcu
-Requires: php74-php-pecl-inotify
-Requires: php74-php-pecl-zip
-Requires: php74-php-pecl-imagick
-Requires: php74-php-gmp
+# supported for NC 29 to 31
 Requires: php81-php-smbclient
 Requires: php81-php-opcache
 Requires: php81-php-pecl-apcu
@@ -37,11 +32,20 @@ Requires: php81-php-pecl-zip
 Requires: php81-php-pecl-imagick
 Requires: php81-php-gmp
 Requires: php81-php-redis
+# suported from NC 30 and up
+Requires: php83-php-smbclient
+Requires: php83-php-opcache
+Requires: php83-php-pecl-apcu
+Requires: php83-php-pecl-inotify
+Requires: php83-php-pecl-zip
+Requires: php83-php-pecl-imagick
+Requires: php83-php-gmp
+Requires: php83-php-redis
 Requires: smeserver-redis
 Requires: jq
-Requires: smeserver-mariadb105
-Requires: smeserver-apache >= 2.6.0-19
-Requires: smeserver-php >= 3.0.0-43
+Requires: smeserver-apache >= 11
+Requires: smeserver-php >= 11
+Requires: ffmpeg
 
 %description
 Koozali SME Server Nextcloud files and configuration.
@@ -79,6 +83,17 @@ cat %{name}-%{version}-filelist
 
 
 %changelog
+* Thu Sep 11 2025 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-34.sme
+- import to SME11
+- set minimum version 29 (last suported in SME10)
+- update requirements
+- rewrite install script to handle migration/restore
+- require JSON-PP [SME: 13137]
+- ffmpeg [SME: 13104]
+- TODO add notify_push [SME: 12994]
+- TODO dedicated domain template [SME: 12993]
+- TODO switch support for php83 [SME: 12406]
+
 * Sun Sep 08 2024 fix-e-smith-pkg.sh by Trevor Batley <trevor@batley.id.au> 1.2.0-33.sme
 - Fix e-smith references in smeserver-nextcloud [SME: 12732]
 
