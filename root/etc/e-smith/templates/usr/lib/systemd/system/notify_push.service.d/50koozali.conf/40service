@@ -1,0 +1,2 @@
+[Service]
+Environment=NEXTCLOUD_URL=https://{$nextcloud{'VirtualHost'}||$DomainName}

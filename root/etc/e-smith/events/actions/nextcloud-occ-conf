@@ -4,8 +4,25 @@ use strict;
 use esmith::ConfigDB;
 use esmith::util;
 use esmith::AccountsDB;
-use JSON;
+use JSON::PP;
 use Array::Compare;
+use Locale::Country;
+
+# Function to validate a country code
+sub validate_country_code {
+    my ($code) = @_;
+
+    # Attempt to convert the code to a country name using the default ISO 3166-1 two-letter codeset
+    my $country_name = code2country($code);
+
+    if (defined $country_name) {
+        print "'$code' is a valid country code for $country_name.\n";
+        return 1; # Valid
+    } else {
+        print "'$code' is not a valid country code.\n";
+        return 0; # Invalid
+    }
+}
 
 sub OCC
 {
@@ -24,7 +41,7 @@ sub OCCr
 sub listLocalMounts
 {
   my %localmounts;
-  my $json = JSON->new->allow_nonref->convert_blessed->escape_slash;
+  my $json = JSON::PP->new->allow_nonref->convert_blessed->escape_slash;
   my $result = $json->decode(OCCr " files_external:list --output json");
 
  for my $report ( @{$result} ) {
@@ -44,7 +61,7 @@ sub listLocalMounts
 sub listUsers
 {
   my %NCusers;
-  my $json = JSON->new->allow_nonref->convert_blessed->escape_slash;
+  my $json = JSON::PP->new->allow_nonref->convert_blessed->escape_slash;
   my $result = $json->decode(OCCr " user:list --output json");
   for my $key (keys  %$result){
         my $name = $result->{$key};
@@ -58,7 +75,7 @@ sub listUsers
 sub listGroups
 {
   my %NCgroups;
-  my $json = JSON->new->allow_nonref->convert_blessed->escape_slash;
+  my $json = JSON::PP->new->allow_nonref->convert_blessed->escape_slash;
   my $result = $json->decode(OCCr " group:list -i --output json");
   for my $key (keys  %$result){
         my $type = $result->{$key}{'backends'}[0];
@@ -122,6 +139,15 @@ foreach (split(',', $trusted_domains)) {
 
 my $VirtualHost = $cdb->get_prop('nextcloud','VirtualHost') || '';
 OCC "config:system:set trusted_domains 99 --value=$VirtualHost" unless $VirtualHost eq "";
+OCC "config:system:set trusted_domains 99 --value=$domain" if $VirtualHost eq "";
+
+# add trusted proxy for notify_push
+OCC "config:system:set trusted_proxies 0 --value=127.0.0.1" 
+OCC "config:system:set trusted_proxies 1 --value=::1" 
+OCC "config:system:set trusted_proxies 2 --value=$local" 
+
+# set notify_push
+OCC "notify_push:setup https://$VirtualHost/push" unless $VirtualHost eq "";
 
 #set local domain to send emails
 if ( ($nextcloud->prop('cliurl') ||'enabled') eq 'enabled') {
@@ -322,6 +348,13 @@ foreach (@users) {
   push @idOK,$id;
 
 }
+
+# TODO set phone region
+# if occ config:system:get default_phone_region empty
+# get country code from locale config $CC=`getprop sysconfig Language |cut -d. -f1|rev |cut -c -2 |rev`
+# check if valid country code validate_country_code($CC)
+# set if valid OCC config:system:set default_phone_region --type string --value="$CC"
+
 
 # set cron
 OCC "background:cron";

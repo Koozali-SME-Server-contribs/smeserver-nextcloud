@@ -1,9 +1,13 @@
-[nextcloud]
+{
+$ports = (${'httpd-e-smith'}{'TCPPort'} || '80') .','.
+      ($modSSL{'TCPPort'} || '443');
+$OUT="";
+}[nextcloud]
 enabled  = true
 filter  = nextcloud
-action   = smeserver-iptables[port="$port",protocol=tcp,bantime=$bantime]
+action   = smeserver-iptables[port="{$ports}",protocol=tcp,bantime=$bantime]
 logpath  = /home/e-smith/files/nextcloud/data/nextcloud.log
 maxretry = 3
-port = 80,443
+port = {$ports}
 protocol = tcp
 

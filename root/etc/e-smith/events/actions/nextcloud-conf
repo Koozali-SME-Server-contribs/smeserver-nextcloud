@@ -1,8 +1,11 @@
 #!/bin/bash
 
 # does /usr/share/nextcloud exists ? no: we create it from sources
-if [ ! -d /usr/share/nextcloud ]; then
-  cp -a /usr/share/nextcloud-src /usr/share/nextcloud
+if [ ! -f /usr/share/nextcloud/occ ]; then
+  mkdir  /usr/share/nextcloud	
+  chown root:www /usr/share/nextcloud
+  chmod 775 /usr/share/nextcloud
+  rsync -arv -q  /usr/share/nextcloud-src/ /usr/share/nextcloud
 fi
 
 # important configuration variables
@@ -21,9 +24,9 @@ installed=$(/usr/bin/occ status --output json |jq -r '.installed')
 majversion=$(/usr/bin/occ status --output json |jq -r '.version'|cut -d'.' -f1)
 
 # initialize grants mysql nextcloud database
-/usr/bin/mysql --defaults-file=/root/.my.cnf $socket -e "CREATE DATABASE IF NOT EXISTS $dbname;"
-/usr/bin/mysql --defaults-file=/root/.my.cnf $socket -e "grant all on $dbname.* to '$dbuser'@'localhost' identified by '$password';"
-/usr/bin/mysql --defaults-file=/root/.my.cnf $socket -e "FLUSH PRIVILEGES"
+/usr/bin/mariadb --defaults-file=/root/.my.cnf $socket -e "CREATE DATABASE IF NOT EXISTS $dbname;"
+/usr/bin/mariadb --defaults-file=/root/.my.cnf $socket -e "grant all on $dbname.* to '$dbuser'@'localhost' identified by '$password';"
+/usr/bin/mariadb --defaults-file=/root/.my.cnf $socket -e "FLUSH PRIVILEGES"
 
 res=`/usr/bin/mysql --defaults-file=/root/.my.cnf $socket -e "select count(*) from information_schema.tables where table_type = 'BASE TABLE' and table_schema = '$dbname'" | tail -n1`;
 
@@ -34,11 +37,11 @@ res=`/usr/bin/mysql --defaults-file=/root/.my.cnf $socket -e "select count(*) fr
 if [[ $res == '0' ]]; then
   if  [ -f /home/e-smith/db/mariadb105/nexcloud.dump ]; then
      echo "Mariadb database empty and there was a backup in /home/e-smith/db/mariadb105/nexcloud.dump; restoring it ..."
-     /usr/bin/mysql --defaults-file=/root/.my.cnf $socket $dbname < /home/e-smith/db/mariadb105/nexcloud.dump && mv /home/e-smith/db/mariadb105/nexcloud.dump /home/e-smith/files/nextcloud/data/mariadb105-nexcloud.dump
+     /usr/bin/mariadb --defaults-file=/root/.my.cnf $socket $dbname < /home/e-smith/db/mariadb105/nexcloud.dump && mv /home/e-smith/db/mariadb105/nexcloud.dump /home/e-smith/files/nextcloud/data/mariadb105-nexcloud.dump
      /usr/bin/occ upgrade -n
   elif [ -f /home/e-smith/db/myslq/nexcloud.dump ]; then
      echo "Mariadb database empty and there was a backup in /home/e-smith/db/myslq/nexcloud.dump; restoring it ..."
-     /usr/bin/mysql --defaults-file=/root/.my.cnf $socket $dbname < /home/e-smith/db/mariadb105/nexcloud.dump
+     /usr/bin/mariadb --defaults-file=/root/.my.cnf $socket $dbname < /home/e-smith/db/mariadb105/nexcloud.dump
      /usr/bin/occ upgrade -n
   else  
       echo "Fresh install detected, starting occ maintenance:install procedure..."
@@ -67,9 +70,10 @@ mkdir -p /home/e-smith/files/nextcloud/skeleton/ibays
 #/usr/bin/occ config:system:set  templatedirectory --value=""
 
 # prepare geoip2.phar and custom apps
-mkdir -p /usr/share/nextcloud/custom_apps/geoblocker/3rdparty/maxmind_geolite2/
-chown www:www -R /usr/share/nextcloud/custom_apps
-curl -q https://api.github.com/repos/maxmind/GeoIP2-php/releases/latest | jq -r '.assets[] | select(.name | match("phar")) | .browser_download_url' | xargs wget -q -O /usr/share/nextcloud/custom_apps/geoblocker/3rdparty/maxmind_geolite2/geoip2.phar
+echo "downloading  geoip2.phar for usage with geoblocker app..."
+mkdir -p /usr/share/nextcloud/apps/geoblocker/3rdparty/maxmind_geolite2/
+curl -q https://api.github.com/repos/maxmind/GeoIP2-php/releases/latest | jq -r '.assets[] | select(.name | match("phar")) | .browser_download_url' | xargs wget -q -O /usr/share/nextcloud/apps/geoblocker/3rdparty/maxmind_geolite2/geoip2.phar
+chown www:www -R /usr/share/nextcloud/apps
 
 # to satisfy code integrity check
 if [ -f /usr/share/nextcloud/.htaccess.rpmsave ]; then
@@ -80,6 +84,7 @@ if [ -f /usr/share/nextcloud/.htaccess.rpmnew ]; then
 fi
 
 # upgrade and check integrity
+echo "upgrading nextcloud database..."
 /usr/bin/occ upgrade
 /usr/bin/occ maintenance:mode --off
 /usr/bin/occ integrity:check-core
@@ -89,12 +94,26 @@ fi
 #fi
 
 # remove signup link
+echo "removing signup link..."
 /usr/bin/occ config:system:set --type=bool --value=false simpleSignUpLink.shown
+
+# set default values for sending mail 
+echo "setting default value to allow to send mail, you can change them from basic settings..."
+/usr/bin/occ config:system:get mail_from_address  || /usr/bin/occ config:system:set mail_from_address --type string --value="admin"
+/usr/bin/occ config:system:get mail_smtpmode      || /usr/bin/occ config:system:set mail_smtpmode     --type string --value="smtp"
+/usr/bin/occ config:system:get mail_sendmailmode  || /usr/bin/occ config:system:set mail_sendmailmode --type string --value="smtp"
+/usr/bin/occ config:system:get mail_domain        || /usr/bin/occ config:system:set mail_domain       --type string --value=`/usr/sbin/e-smith/config get DomainName`
+/usr/bin/occ config:system:get mail_smtpport      || /usr/bin/occ config:system:set mail_smtpport     --type string --value=`/usr/sbin/e-smith/config getprop qpsmtpd TCPPort`
+/usr/bin/occ config:system:get mail_smtphost      || /usr/bin/occ config:system:set mail_smtphost     --type string --value=`/usr/sbin/e-smith/config get DomainName`
+
+# install notify_push
+/usr/bin/occ app:install notify_push
 
 #set default loglevel SME 12412
 /usr/bin/occ config:system:set loglevel --value=3
 
 #Redis index File Cache
+echo "configuring setting for Redis..."
 /usr/bin/occ config:system:set  redis host --value="localhost"
 /usr/bin/occ config:system:set  redis port --value="6379"
 /usr/bin/occ config:system:set  redis timeout --value="0.0"

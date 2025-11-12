@@ -1,5 +1,5 @@
 opcache.enable=1
-opcache.file_cache= /var/opt/remi/php81/lib/php/opcache
+opcache.file_cache= /var/opt/remi/php83/lib/php/opcache
 opcache.enable_cli= 1
 opcache.interned_strings_buffer= {$nextcloud{'opcache.interned_strings_buffer'} || 64;}
 opcache.max_accelerated_files= {$nextcloud{'opcache.max_accelerated_files'} || 65406;}

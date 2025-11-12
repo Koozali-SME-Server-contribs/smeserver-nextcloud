@@ -46,7 +46,8 @@ Requires: jq
 Requires: smeserver-apache >= 11
 Requires: smeserver-php >= 11
 Requires: ffmpeg
-
+# ideally would need smeserver-geoip and it configured to update it.
+Requires: geolite2-country
 %description
 Koozali SME Server Nextcloud files and configuration.
 
@@ -88,11 +89,14 @@ cat %{name}-%{version}-filelist
 - set minimum version 29 (last suported in SME10)
 - update requirements
 - rewrite install script to handle migration/restore
-- require JSON-PP [SME: 13137]
+- rewrite 98nextcloud fragment
+- new script /usr/bin/nc_upgrade for cli update
+- require JSON-PP + rewrite action script [SME: 13137]
 - ffmpeg [SME: 13104]
-- TODO add notify_push [SME: 12994]
+- switch support for php83 [SME: 12406]
+- update nextcloud fail2ban filter [SME: 12487]
+- add notify_push [SME: 12994]
 - TODO dedicated domain template [SME: 12993]
-- TODO switch support for php83 [SME: 12406]
 
 * Sun Sep 08 2024 fix-e-smith-pkg.sh by Trevor Batley <trevor@batley.id.au> 1.2.0-33.sme
 - Fix e-smith references in smeserver-nextcloud [SME: 12732]

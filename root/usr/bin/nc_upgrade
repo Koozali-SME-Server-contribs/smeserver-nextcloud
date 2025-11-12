@@ -1,0 +1,11 @@
+#!/bin/bash
+majversion=$((/usr/bin/grep -Eo "'version'.*[0-9]{2}\." /usr/share/nextcloud/config/config.php 2>/dev/null || echo "30" )|/usr/bin/grep -Eo "[0-9]{2}"|head -1)
+memory=$(/sbin/e-smith/config getprop nextcloud memory_limit|| echo "2048M")
+myphp=/usr/bin/php83
+if [[ $majversion -lt '30' ]]; then 
+  myphp=/usr/bin/php81
+fi
+occ maintenance:mode --on
+/usr/sbin/runuser -u www -- $myphp -d memory_limit=$memory -d apc.enable_cli=1 /usr/share/nextcloud/updater/updater.phar --no-interaction
+occ upgrade
+occ maintenance:mode --off

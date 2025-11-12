@@ -13,12 +13,14 @@ event_templates("nextcloud-update", qw(
   /etc/crontab
   /etc/opt/remi/php81/php-fpm.d/www.conf
   /etc/opt/remi/php83/php-fpm.d/www.conf
+  /usr/lib/systemd/system/notify_push.service.d/50koozali.conf
 ));
 
 event_services("nextcloud-update", qw(
   httpd-e-smith sigusr1
   php81-php-fpm reload-or-restart
   php83-php-fpm reload-or-restart
+  notify_push restart
 ));
 
 event_actions("nextcloud-save", qw(
@@ -46,12 +48,14 @@ event_templates($event, qw(
   /etc/crontab
   /etc/opt/remi/php81/php-fpm.d/www.conf
   /etc/opt/remi/php83/php-fpm.d/www.conf
+  /usr/lib/systemd/system/notify_push.service.d/50koozali.conf
 ));
 
 event_services($event, qw(
   httpd-e-smith sigusr1
   php81-php-fpm reload-or-restart
   php84-php-fpm reload-or-restart
+  notify_push restart
 ));
 # this is after service restart as it depends on installation of mariadb
 # however if we increase initial version of nextcloud >25 then we need to
