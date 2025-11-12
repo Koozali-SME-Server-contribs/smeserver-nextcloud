@@ -1,4 +1,4 @@
-%define release 34
+%define release 35
 %define version 1.2.0
 
 Summary: Koozali SME Server Nextcloud configuration
@@ -84,7 +84,7 @@ cat %{name}-%{version}-filelist
 
 
 %changelog
-* Thu Sep 11 2025 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-34.sme
+* Thu Sep 11 2025 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-35.sme
 - import to SME11
 - set minimum version 29 (last suported in SME10)
 - update requirements
