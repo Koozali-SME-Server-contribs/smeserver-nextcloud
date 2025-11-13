@@ -2,11 +2,11 @@
 
 # does /usr/share/nextcloud exists ? no: we create it from sources
 if [ ! -f /usr/share/nextcloud/occ ]; then
-  mkdir  /usr/share/nextcloud	
+  mkdir -p  /usr/share/nextcloud	
   chown root:www /usr/share/nextcloud
-  chmod 775 /usr/share/nextcloud
   rsync -arv -q  /usr/share/nextcloud-src/ /usr/share/nextcloud
 fi
+chmod 775 /usr/share/nextcloud
 
 # important configuration variables
 password=`/sbin/e-smith/db configuration getprop nextcloud DbPassword || echo "missing"`
@@ -14,6 +14,7 @@ dbname=`/sbin/e-smith/db configuration getprop nextcloud DbName || echo "nextclo
 dbuser=`/sbin/e-smith/db configuration getprop nextcloud DbUser || echo "nextcloud"`
 adminuser=`/sbin/e-smith/db configuration getprop nextcloud AdminUser || echo "admin"`
 adminpass=`/sbin/e-smith/db configuration getprop nextcloud AdminPassword ||/sbin/e-smith/db configuration getprop sysconfig SystemID  || echo "password;109"`
+domain=`/sbin/e-smith/db configuration get DomainName|| echo "localhost"`
 
 host="localhost:/var/lib/mysql/mysql.sock"
 socket="--socket=/var/lib/mysql/mysql.sock"
@@ -28,7 +29,7 @@ majversion=$(/usr/bin/occ status --output json |jq -r '.version'|cut -d'.' -f1)
 /usr/bin/mariadb --defaults-file=/root/.my.cnf $socket -e "grant all on $dbname.* to '$dbuser'@'localhost' identified by '$password';"
 /usr/bin/mariadb --defaults-file=/root/.my.cnf $socket -e "FLUSH PRIVILEGES"
 
-res=`/usr/bin/mysql --defaults-file=/root/.my.cnf $socket -e "select count(*) from information_schema.tables where table_type = 'BASE TABLE' and table_schema = '$dbname'" | tail -n1`;
+res=`/usr/bin/mariadb --defaults-file=/root/.my.cnf $socket -e "select count(*) from information_schema.tables where table_type = 'BASE TABLE' and table_schema = '$dbname'" | tail -n1`;
 
 #TODO : SME11 we need to see if db nextcloud exist
 # if not we must check if /home/e-smith/db/mariadb105/nexcloud.dump exists and import it
@@ -71,9 +72,9 @@ mkdir -p /home/e-smith/files/nextcloud/skeleton/ibays
 
 # prepare geoip2.phar and custom apps
 echo "downloading  geoip2.phar for usage with geoblocker app..."
-mkdir -p /usr/share/nextcloud/apps/geoblocker/3rdparty/maxmind_geolite2/
-curl -q https://api.github.com/repos/maxmind/GeoIP2-php/releases/latest | jq -r '.assets[] | select(.name | match("phar")) | .browser_download_url' | xargs wget -q -O /usr/share/nextcloud/apps/geoblocker/3rdparty/maxmind_geolite2/geoip2.phar
-chown www:www -R /usr/share/nextcloud/apps
+curl -q https://api.github.com/repos/maxmind/GeoIP2-php/releases/latest | jq -r '.assets[] | select(.name | match("phar")) | .browser_download_url' | xargs wget -q -O /usr/share/GeoIP/geoip2.phar
+# in case you do not want to install smeserver-geoip and set it, you could (credit: https://github.com/P3TERX/GeoLite.mmdb)
+#wget https://git.io/GeoLite2-Country.mmdb -O /usr/share/GeoIP/GeoLite2-Country.mmdb
 
 # to satisfy code integrity check
 if [ -f /usr/share/nextcloud/.htaccess.rpmsave ]; then
@@ -108,6 +109,15 @@ echo "setting default value to allow to send mail, you can change them from basi
 
 # install notify_push
 /usr/bin/occ app:install notify_push
+
+# install geoblocker
+/usr/bin/occ app:install geoblocker
+/usr/bin/occ config:app:set geoblocker MaxMindGeoLite2_DatabaseFileLocation --value "/usr/share/GeoIP/GeoLite2-Country.mmdb"
+/usr/bin/occ config:app:set geoblocker chosenService  --value "1"
+
+# set external password
+/usr/bin/occ app:install externalpassword
+/usr/bin/occ config:app:get externalpassword changePasswordUrl || /usr/bin/occ config:app:set  externalpassword changePasswordUrl --value "https://$domain/smanager"
 
 #set default loglevel SME 12412
 /usr/bin/occ config:system:set loglevel --value=3

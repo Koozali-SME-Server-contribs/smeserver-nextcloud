@@ -148,6 +148,7 @@ OCC "config:system:set trusted_proxies 2 --value=$local";
 
 # set notify_push
 OCC "notify_push:setup https://$VirtualHost/push" unless $VirtualHost eq "";
+OCC "notify_push:setup https://$domain/nextcloud/push" if $VirtualHost eq "";
 
 #set local domain to send emails
 if ( ($nextcloud->prop('cliurl') ||'enabled') eq 'enabled') {
@@ -355,6 +356,9 @@ foreach (@users) {
 # check if valid country code validate_country_code($CC)
 # set if valid OCC config:system:set default_phone_region --type string --value="$CC"
 
+# pretty URL : let httpd.conf do the job 
+OCC "config:system:delete htaccess.RewriteBase";
+OCC "maintenance:update:htaccess";
 
 # set cron
 OCC "background:cron";

@@ -1,4 +1,4 @@
-%define release 35
+%define release 36
 %define version 1.2.0
 
 Summary: Koozali SME Server Nextcloud configuration
@@ -19,6 +19,7 @@ Requires: smeserver-mysql
 Requires: smeserver-webapps-common
 Requires: smeserver-php >= 11
 Requires: samba-client
+Requires: perl-Array-Compare
 Requires: perl-JSON
 Requires: perl-JSON-PP
 Requires: perl-Exporter-Tiny
@@ -84,6 +85,14 @@ cat %{name}-%{version}-filelist
 
 
 %changelog
+* Thu Nov 13 2025 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-36.sme
+- dedicated domain template [SME: 12993]
+- fix notify_push [SME: 12994]
+- improve httpd template
+- add externalpassword support
+- add geoblocker support
+- TODO migrate domains, fix domain support notify_push ...
+
 * Thu Sep 11 2025 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-35.sme
 - import to SME11
 - set minimum version 29 (last suported in SME10)
@@ -96,7 +105,6 @@ cat %{name}-%{version}-filelist
 - switch support for php83 [SME: 12406]
 - update nextcloud fail2ban filter [SME: 12487]
 - add notify_push [SME: 12994]
-- TODO dedicated domain template [SME: 12993]
 
 * Sun Sep 08 2024 fix-e-smith-pkg.sh by Trevor Batley <trevor@batley.id.au> 1.2.0-33.sme
 - Fix e-smith references in smeserver-nextcloud [SME: 12732]

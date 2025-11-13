@@ -7,8 +7,6 @@
   my $access = $nextcloud{'access'} || 'private';
   my $allow = ($access eq 'public')?'all granted':"ip $localAccess $externalSSLAccess";
   my $authtype = $nextcloud{'Authentication'} || 'none';
-  my $alias = (($nextcloud{'AliasOnPrimary'} || 'enabled') eq 'enabled') ?
-      'Alias /nextcloud /usr/share/nextcloud' : '#Alias /nextcloud disabled, only use dedicated domain';
 
   my $maxupload = $nextcloud{'MaxUploadSize'} || '1024';
   my $maxpost = $maxupload+1;
@@ -41,7 +39,6 @@ EOF
 <IfModule mod_headers.c>
     Header always set Strict-Transport-Security "max-age=15552000"
 </IfModule>
-$alias
 <Directory "/usr/share/nextcloud">
     Options +FollowSymLinks
     AllowOverride All
