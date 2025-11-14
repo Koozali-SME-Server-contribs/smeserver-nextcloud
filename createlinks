@@ -13,7 +13,6 @@ event_templates("nextcloud-update", qw(
   /etc/crontab
   /etc/opt/remi/php81/php-fpm.d/www.conf
   /etc/opt/remi/php83/php-fpm.d/www.conf
-  /usr/lib/systemd/system/notify_push.service.d/50koozali.conf
 ));
 
 event_services("nextcloud-update", qw(
@@ -35,7 +34,7 @@ foreach my $event (qw(ibay-create ibay-modify ibay-modify-files  group-create  g
    event_link("nextcloud-occ-conf", $event, "30");
    }
 
-foreach my $event (qw(bootstrap-console-save  console-save webapps-update post-upgrade )){
+foreach my $event (qw(console-save webapps-update post-upgrade )){
    event_link("nextcloud-occ-conf", $event, "30");
    
       }
@@ -48,7 +47,7 @@ event_templates($event, qw(
   /etc/crontab
   /etc/opt/remi/php81/php-fpm.d/www.conf
   /etc/opt/remi/php83/php-fpm.d/www.conf
-  /usr/lib/systemd/system/notify_push.service.d/50koozali.conf
+  /etc/rsyslog.conf
 ));
 
 event_services($event, qw(
@@ -56,6 +55,7 @@ event_services($event, qw(
   php81-php-fpm reload-or-restart
   php84-php-fpm reload-or-restart
   notify_push restart
+  rsyslog restart
 ));
 # this is after service restart as it depends on installation of mariadb
 # however if we increase initial version of nextcloud >25 then we need to

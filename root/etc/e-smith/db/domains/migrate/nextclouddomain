@@ -1,0 +1,18 @@
+{
+    # vim: ft=perl ts=4 sw=4 et:
+    use Data::Validate::Domain qw(is_domain);
+    use esmith::ConfigDB;
+
+    my $db = esmith::ConfigDB->open;
+
+    my $nc = $db->get('nextcloud') or return;
+    my $ncdom = $db->get_prop_and_delete('nextcloud','VirtualHost') if  (exists $nextcloud{'VirtualHost'});
+    my %defaults = ( 'type'    => 'domain',
+                     'Description'   => 'Nextcloud',
+                     'Content' => 'Primary',
+                     'Nameservers' => 'internet', 
+                     'TemplatePath' => 'NextcloudVirtualHost',
+                     'letsencryptSSLcert' => 'enabled' );
+    $rec=$DB->new_record($ncdom, \%defaults) if is_domain($ncdom);
+}
+

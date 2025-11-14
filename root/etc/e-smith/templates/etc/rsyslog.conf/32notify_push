@@ -1,0 +1,3 @@
+#32 notify_push for nextcloud
+:programname, startswith, "notify_push" stop
+

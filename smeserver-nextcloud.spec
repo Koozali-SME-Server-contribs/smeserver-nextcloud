@@ -1,4 +1,4 @@
-%define release 36
+%define release 37
 %define version 1.2.0
 
 Summary: Koozali SME Server Nextcloud configuration
@@ -85,6 +85,13 @@ cat %{name}-%{version}-filelist
 
 
 %changelog
+* Thu Nov 13 2025 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-37.sme
+- migrate domains in Virtualhost property and delete it 
+- fix domain support notify_push
+- fixup dedicated domain template
+- fix notify_push noise to message
+- remove nextcloud-occ-conf from bootstrap-console-save 
+
 * Thu Nov 13 2025 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-36.sme
 - dedicated domain template [SME: 12993]
 - fix notify_push [SME: 12994]

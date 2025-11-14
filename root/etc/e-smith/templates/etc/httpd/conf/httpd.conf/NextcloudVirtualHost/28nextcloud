@@ -1,0 +1,35 @@
+#
+# 28nextcloud in NextcloudVirtualhost
+#
+
+{
+   return "# nextcloud disabled\n" unless ((${'nextcloud'}{'status'} || 'disabled') eq 'enabled' );
+   my $CloudDomain = $nextcloud{'VirtualHost'} || 'none';#using CloudDomain, not to confuse for the template virtualHost variable
+   $OUT = '';
+   if ($port eq "80") 
+   {
+      $OUT .= "    RewriteRule ^(/.*|\$)    https://%{HTTP_HOST}\$1 [L,R=301]\n";
+   }
+   else
+   {
+      $OUT .= " 
+    DocumentRoot /usr/share/nextcloud
+    Timeout 600
+
+    RewriteEngine on
+    RewriteRule ^/\\.well-known/host-meta /public.php?service=host-meta [QSA,L]
+    RewriteRule ^/\\.well-known/host-meta\.json /public.php?service=host-meta-json [QSA,L]
+    #RewriteRule ^/\\.well-known/webfinger /public.php?service=webfinger [QSA,L]
+    RewriteRule ^/\\.well-known/webfinger /index.php/.well-known/webfinger [R=301,L]
+    RewriteRule ^/\\.well-known/nodeinfo /index.php/.well-known/nodeinfo [R=301,L]
+    RewriteRule ^/\\.well-known/carddav /remote.php/dav [R=301,L]
+    RewriteRule ^/\\.well-known/caldav /remote.php/dav [R=301,L]
+    RewriteRule ^ocm-provider/?\$ /index.php [QSA,L]
+    RewriteRule ^ocs-provider/?\$ /index.php [QSA,L]
+    # notify_push app
+    ProxyPass /push/ws ws://127.0.0.1:7867/ws
+    ProxyPass /push/ http://127.0.0.1:7867/
+    ProxyPassReverse /push/ http://127.0.0.1:7867/\n";
+   }
+}
+

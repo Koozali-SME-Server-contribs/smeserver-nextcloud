@@ -1,9 +1,10 @@
 #!/usr/bin/perl
 
 use strict;
-use esmith::ConfigDB;
 use esmith::util;
+use esmith::ConfigDB;
 use esmith::AccountsDB;
+use esmith::DomainsDB;
 use JSON::PP;
 use Array::Compare;
 use Locale::Country;
@@ -119,6 +120,13 @@ my $remote = $cdb->get_value('ExternalIP') || "";
 my $comp1 = Array::Compare->new; 
 my $workgroup = $cdb->get_prop('smb','Workgroup');
 
+my $ddb = esmith::DomainsDB->open_ro();
+# get an array of nextcloud domains
+my @ncdom = map { $_->key } $ddb->get_all_by_prop(TemplatePath => "NextcloudVirtualHost");
+# default on main domain if none defined
+@ncdom = ($domain ) if (scalar @ncdom == 0);
+
+
 # update trusted domains
 OCC "config:system:set trusted_domains 0 --value=$fqdn";
 OCC "config:system:set trusted_domains 1 --value=$host";
@@ -136,23 +144,24 @@ foreach (split(',', $trusted_domains)) {
     OCC "config:system:set trusted_domains $i --value=".$_;
     $i++;
 }
-
-my $VirtualHost = $cdb->get_prop('nextcloud','VirtualHost') || '';
-OCC "config:system:set trusted_domains 99 --value=$VirtualHost" unless $VirtualHost eq "";
-OCC "config:system:set trusted_domains 99 --value=$domain" if $VirtualHost eq "";
+foreach (@ncdom) {
+   OCC "config:system:set trusted_domains $i --value=".$_;
+    $i++;
+}
 
 # add trusted proxy for notify_push
 OCC "config:system:set trusted_proxies 0 --value=127.0.0.1"; 
 OCC "config:system:set trusted_proxies 1 --value=::1"; 
 OCC "config:system:set trusted_proxies 2 --value=$local"; 
 
+#yes this is arbitrary, the first one of NextcloudVirtualHost!
+my $url= (scalar @ncdom == 0) ?  "$domain/nextcloud" : $ncdom[0];
+
 # set notify_push
-OCC "notify_push:setup https://$VirtualHost/push" unless $VirtualHost eq "";
-OCC "notify_push:setup https://$domain/nextcloud/push" if $VirtualHost eq "";
+OCC "notify_push:setup https://".$url."/push";
 
 #set local domain to send emails
 if ( ($nextcloud->prop('cliurl') ||'enabled') eq 'enabled') {
-    my $url= ($VirtualHost eq "")? "$domain/nextcloud" : $VirtualHost;
     OCC "config:system:set overwrite.cli.url --value 'https://$url'"
 }
 
@@ -356,9 +365,6 @@ foreach (@users) {
 # check if valid country code validate_country_code($CC)
 # set if valid OCC config:system:set default_phone_region --type string --value="$CC"
 
-# pretty URL : let httpd.conf do the job 
-OCC "config:system:delete htaccess.RewriteBase";
-OCC "maintenance:update:htaccess";
 
 # set cron
 OCC "background:cron";
