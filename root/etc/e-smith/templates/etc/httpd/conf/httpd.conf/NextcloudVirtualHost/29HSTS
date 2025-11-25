@@ -1,0 +1,26 @@
+{
+    use esmith::DomainsDB;
+    my $domains = esmith::DomainsDB->open_ro;
+
+    # return if not SSL
+    return "    # skipping SSL certificate\n" unless $port eq "$httpsPort";
+
+    # return unless we have a real certificate (however, here  we assume that one will not set manually a self signed one...)
+    # by the way accessing with an ip will fail.
+    my $ssl_file_crt = $domains->get_prop($virtualHost, "DomainSSLCertificateFile") || $modSSL{'crt'}  || "disabled";
+    return "    # HSTS  incompatible with self signed certificate\n" unless ($ssl_file_crt ne "disabled" && -e $ssl_file_crt);
+
+    # return unless enabled for domain
+    return "    # HSTS disabled\n" unless ( ($domains->get_prop($virtualHost, "HSTS") || "enabled") eq 'enabled');
+
+    # if setting preload you need max-age>= 1years in second and includeSubDomains enabled.
+    my $preload = (($domains->get_prop($virtualHost, "HSTSpreload") || "disabled") eq 'enabled')? "; preload" : "";
+
+    my $includeSubDomains = (${'httpd-e-smith'}{HSTSsubdomain} eq 'enabled')? "; includeSubDomains" : "";
+    $includeSubDomains = "; includeSubDomains" if ($preload eq "; preload");
+
+    # default to 1 years in second to access to preload; suggested 2 years.
+    my $age = ($domains->get_prop($virtualHost, "HSTSage") )? $domains->get_prop($virtualHost, "HSTSage") : "31536000";
+
+    $OUT = '    Header always set Strict-Transport-Security "max-age='.$age.' '.$includeSubDomains.' '.$preload.'"' ;
+}

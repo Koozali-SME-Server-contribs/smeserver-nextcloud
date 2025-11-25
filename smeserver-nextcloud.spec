@@ -1,4 +1,4 @@
-%define release 38
+%define release 39
 %define version 1.2.0
 
 Summary: Koozali SME Server Nextcloud configuration
@@ -85,8 +85,9 @@ cat %{name}-%{version}-filelist
 
 
 %changelog
-* Tue Nov 25 2025 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-38.sme
-- remove * fragment 
+* Tue Nov 25 2025 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-39.sme
+- remove * fragment
+- add missing fragments for NC virtualhost
 
 * Thu Nov 13 2025 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-37.sme
 - migrate domains in Virtualhost property and delete it 

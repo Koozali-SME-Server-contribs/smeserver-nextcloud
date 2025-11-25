@@ -1,0 +1,12 @@
+{
+    # vim: ft=perl:
+
+    $haveSSL = (exists ${modSSL}{status} and ${modSSL}{status} eq "enabled") ?  'yes' : 'no';
+    $plainTextAccess = ${'httpd-admin'}{PermitPlainTextAccess} || 'no';
+
+    $OUT = '';
+        if (($port eq $httpPort) && ($haveSSL eq 'yes') && ($plainTextAccess ne 'yes'))
+        {
+            $OUT .= "    RewriteRule ^/.well-known/security.txt\$    https://%{HTTP_HOST}/.well-known/security.txt [L,R]\n";
+        }
+}

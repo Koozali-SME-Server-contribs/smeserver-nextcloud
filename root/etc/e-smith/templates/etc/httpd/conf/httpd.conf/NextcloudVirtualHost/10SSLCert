@@ -1,0 +1,18 @@
+{
+    return "    # skipping SSL certificate\n" unless $port eq "$httpsPort";
+
+    use esmith::DomainsDB;
+    my $domains = esmith::DomainsDB->open_ro;
+
+    $OUT = "";
+
+    my $ssl_file_crt = $domains->get_prop($virtualHost, "DomainSSLCertificateFile") || "disabled";
+    my $ssl_file_key = $domains->get_prop($virtualHost, "DomainSSLCertificateKeyFile") || "disabled";
+    my $ssl_file_chain = $domains->get_prop($virtualHost, "DomainSSLCertificateChainFile") || "disabled";
+
+    return unless ( $ssl_file_crt ne 'disabled' && $ssl_file_chain ne 'disabled' && -e $ssl_file_crt && -e $ssl_file_key );
+    $OUT .= "    SSLCertificateFile $ssl_file_crt\n" unless $ssl_file_crt eq 'disabled';
+    $OUT .= "    SSLCertificateChainFile $ssl_file_chain\n" unless $ssl_file_chain eq 'disabled';
+    $OUT .= "    SSLCertificateKeyFile $ssl_file_key\n" unless ( $ssl_file_key eq 'disabled' || ! -e $ssl_file_chain );
+}
+
