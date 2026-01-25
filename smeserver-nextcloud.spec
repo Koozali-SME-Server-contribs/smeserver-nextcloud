@@ -1,4 +1,4 @@
-%define release 39
+%define release 40
 %define version 1.2.0
 
 Summary: Koozali SME Server Nextcloud configuration
@@ -85,6 +85,9 @@ cat %{name}-%{version}-filelist
 
 
 %changelog
+* Sat Jan 24 2026 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-40.sme
+- fix SME10 migration needs update mariadb socket path [SME: 13404]
+
 * Tue Nov 25 2025 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-39.sme
 - remove * fragment
 - add missing fragments for NC virtualhost

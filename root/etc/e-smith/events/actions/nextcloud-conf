@@ -18,6 +18,10 @@ domain=`/sbin/e-smith/db configuration get DomainName|| echo "localhost"`
 
 host="localhost:/var/lib/mysql/mysql.sock"
 socket="--socket=/var/lib/mysql/mysql.sock"
+
+#fix socket path for sme10 migration
+sed -i /usr/share/nextcloud/config/config.php -e "s#localhost:/var/lib/mysql/mariadb105.sock#$host#"
+
 # need to check what db we are supposed to use. starting NC 21 mariadb >= 102 is needed  core is 55
 # are we fresh install or update ?
 installed=$(/usr/bin/occ status --output json |jq -r '.installed')
