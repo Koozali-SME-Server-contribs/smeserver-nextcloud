@@ -8,7 +8,7 @@
   close NC;
  }
  $OUT="/usr/bin/php81" if $version < 30;
-} --define apc.enable_cli=1 --define memory_limit={ $memory=$nextcloud{'memory_limit'}||'1024M';} -f /usr/share/nextcloud/cron.php > /dev/null 2>&1
+} --define apc.enable_cli=1 --define memory_limit={ $memory=$nextcloud{'memory_limit'}||'2048M';} -f /usr/share/nextcloud/cron.php > /dev/null 2>&1
 
 # nextcloud db update
 19    2  *  *  * root /usr/bin/nc_dbupdate > /dev/null 2>&1

@@ -9,6 +9,7 @@ fi
 chmod 775 /usr/share/nextcloud
 
 # important configuration variables
+serverid=`/sbin/e-smith/db configuration getprop nextcloud serverid || echo "0"`
 password=`/sbin/e-smith/db configuration getprop nextcloud DbPassword || echo "missing"`
 dbname=`/sbin/e-smith/db configuration getprop nextcloud DbName || echo "nextcloud"`
 dbuser=`/sbin/e-smith/db configuration getprop nextcloud DbUser || echo "nextcloud"`
@@ -134,6 +135,12 @@ echo "configuring setting for Redis..."
 /usr/bin/occ config:system:set  redis password --value=""
 /usr/bin/occ config:system:set  memcache.locking --value="\OC\Memcache\Redis"
 /usr/bin/occ config:system:set --type=bool --value=true filelocking.enabled
+
+# set server id
+/usr/bin/occ config:system:set serverid --value=$serverid
+
+# disable AppAPI
+/usr/bin/occ app:disable app_api
 
 # cron maintenance windows
 /usr/bin/occ config:system:set maintenance_window_start --type=integer --value=1

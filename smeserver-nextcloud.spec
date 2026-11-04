@@ -1,4 +1,4 @@
-%define release 42
+%define release 43
 %define version 1.2.0
 
 Summary: Koozali SME Server Nextcloud configuration
@@ -86,6 +86,13 @@ cat %{name}-%{version}-filelist
 
 
 %changelog
+* Tue Nov 03 2026 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-43.sme
+- fix php 83 not restarting [SME: 13813]
+- set PHP memory limit >=512MB  [SME: 13811]
+- fix notify_push [SME: 13812] 
+- disable app_api [SME: 13814]
+- set server id
+
 * Tue Nov 03 2026 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-42.sme
 - fix nc_upgrade perms [SME: 13507]
 

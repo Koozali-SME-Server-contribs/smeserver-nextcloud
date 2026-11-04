@@ -3,11 +3,6 @@ Description = Push daemon for Nextcloud clients
 #ConditionPathExists=/usr/share/nextcloud/apps/notify_push/bin/x86_64/notify_push
 [Service]
 Environment=PORT=7867
-# if you want this to refuse self signed cert
-# create a /etc/systemd/system/notify_push.service.d/50koozali.conf with  
-#[Service] 
-#Environment=
-#Environment=PORT=7867
 Environment=ALLOW_SELF_SIGNED=true
 ExecStartPre=/usr/bin/test -f /usr/share/nextcloud/apps/notify_push/bin/x86_64/notify_push
 ExecStart=/usr/share/nextcloud/apps/notify_push/bin/x86_64/notify_push /usr/share/nextcloud/config/config.php

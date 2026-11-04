@@ -9,3 +9,4 @@ occ maintenance:mode --on
 /usr/sbin/runuser -u www -- $myphp -d memory_limit=$memory -d apc.enable_cli=1 /usr/share/nextcloud/updater/updater.phar --no-interaction
 occ upgrade
 occ maintenance:mode --off
+/usr/bin/nc_dbupdate

@@ -13,6 +13,10 @@
                      'Nameservers' => 'internet', 
                      'TemplatePath' => 'NextcloudVirtualHost',
                      'letsencryptSSLcert' => 'enabled' );
-    $rec=$DB->new_record($ncdom, \%defaults) if is_domain($ncdom);
+    if (is_domain($ncdom)) {
+       my $ncdomain =  $DB->get($ncdom) ||
+                   $DB->new_record($ncdom, \%defaults);
+       $ncdomain->merge_props('TemplatePath' => 'NextcloudVirtualHost');   
+    }
 }
 

@@ -6,7 +6,17 @@
    return "# nextcloud disabled\n" unless ((${'nextcloud'}{'status'} || 'disabled') eq 'enabled' );
    return "# nextcloud alias disabled\n" unless (($nextcloud{'AliasOnPrimary'} || 'enabled') eq 'enabled') ;
 
-   my $CloudDomain = $nextcloud{'VirtualHost'} || 'none';#using CloudDomain, not to confuse for the template virtualHost variable
+    use esmith::DomainsDB;
+
+    my $ddb = esmith::DomainsDB->open_ro;
+    unless ($ddb)
+    {
+        warn "Couldn't open domains DB in VirtualHosts template fragment";
+        return;
+    }
+
+   return "# at least one NextcloudVirtualHost" if $ddb->get_all_by_prop( TemplatePath => 'NextcloudVirtualHost');
+
    $OUT = ''; 
    if (($port eq "80") && ($haveSSL eq 'yes'))
    {

@@ -12,7 +12,7 @@ if ($PHP_VERSION eq $phpversion){
   if (($nextcloud{'status'} || 'disabled') eq 'enabled'){
     my $max_upload_size = ($nextcloud{MaxUploadSize} || '4096');
     $max_upload_size .= 'M' if ($max_upload_size =~ m/^\d+$/);
-    my $memory_limit = ($nextcloud{MemoryLimit} || '512M');
+    my $memory_limit = ($nextcloud{MemoryLimit} || '2048M');
     $memory_limit .= 'M' if ($memory_limit =~ m/^\d+$/);
     my $open_basedir= $nextcloud{PHPBaseDir} || '';
     $open_basedir = "/usr/share/nextcloud:/var/lib/nextcloud:/var/log/nextcloud.log:/var/lib/php/nextcloud:/home/e-smith/files/nextcloud:/dev/urandom:/proc/meminfo:/usr/share/GeoIP/geoip2.phar:/usr/share/GeoIP/GeoLite2-Country.mmdb:/proc/cpuinfo:/usr/bin/ffmpeg:$open_basedir";

@@ -1,0 +1,13 @@
+[Service]
+{ $OUT = ( ( $nextcloud{'notify_push_cert'} || 'enabled') eq "disabled" ) ? "Environment=\n" : "#if you want to use a domain without certs set nextcloud notify_push_cert to disabled\n";
+}
+Environment=PORT=7867
+Environment=NEXTCLOUD_URL={
+use esmith::DomainsDB;
+my $ddb = esmith::DomainsDB->open_ro();
+# get an array of nextcloud domains
+my @ncdom = map { $_->key } $ddb->get_all_by_prop(TemplatePath => "NextcloudVirtualHost");
+# default on main domain if none defined
+$OUT =  (scalar @ncdom == 0) ? "https://$domain/nextcloud"  : "https://".${ncdom[0]};
+}
+

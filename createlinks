@@ -2,17 +2,20 @@
 use esmith::Build::CreateLinks  qw(:all);
 
 event_actions("nextcloud-update", qw(
+  nextcloud-php 02
   nextcloud-conf 04
   nextcloud-occ-conf 30
 ));
 
 event_templates("nextcloud-update", qw(
   /etc/httpd/conf/httpd.conf
+  /etc/opt/remi/php83/php.ini
   /etc/opt/remi/php81/php.d/20-opcache.ini
   /etc/opt/remi/php83/php.d/20-opcache.ini
   /etc/crontab
   /etc/opt/remi/php81/php-fpm.d/www.conf
   /etc/opt/remi/php83/php-fpm.d/www.conf
+  /usr/lib/systemd/system/notify_push.service.d/50koozali.conf
 ));
 
 event_services("nextcloud-update", qw(
@@ -42,18 +45,20 @@ foreach my $event (qw(console-save webapps-update post-upgrade )){
 my $event="smeserver-nextcloud-update";
 event_templates($event, qw(
   /etc/httpd/conf/httpd.conf
+  /etc/opt/remi/php83/php.ini
   /etc/opt/remi/php81/php.d/20-opcache.ini
   /etc/opt/remi/php83/php.d/20-opcache.ini
   /etc/crontab
   /etc/opt/remi/php81/php-fpm.d/www.conf
   /etc/opt/remi/php83/php-fpm.d/www.conf
   /etc/rsyslog.conf
+  /usr/lib/systemd/system/notify_push.service.d/50koozali.conf
 ));
 
 event_services($event, qw(
   httpd-e-smith sigusr1
   php81-php-fpm reload-or-restart
-  php84-php-fpm reload-or-restart
+  php83-php-fpm reload-or-restart
   notify_push restart
   rsyslog restart
 ));
@@ -61,6 +66,7 @@ event_services($event, qw(
 # however if we increase initial version of nextcloud >25 then we need to
 # change the default of php to 81 or re expand templates a second time
 # or web serice will fail
+event_link("nextcloud-php", $event, "02");
 event_link("nextcloud-conf", $event, "91");
 event_link("nextcloud-occ-conf", $event, "92");
 #maybe changing to

@@ -1,0 +1,21 @@
+#!/bin/bash
+mem=$(config getprop php83 MemoryLimit)
+
+mem_num=$(echo "${mem}" | tr -dc '0-9')
+mem_unit=$(echo "${mem}" | tr -dc 'a-zA-Z' | tr '[:lower:]' '[:upper:]')
+
+mem_num=${mem_num:-0}
+
+if [ "$mem_unit" = "G" ]; then
+    mem_in_m=$((mem_num * 1024))
+else
+    mem_in_m=$mem_num
+fi
+
+if [ -z "$mem" ] || [ "$mem_in_m" -lt 512 ]; then
+    mem="512M"
+    config setprop php83 MemoryLimit "$mem"
+    echo "php83 MemoryLimit set to $mem"
+else
+    echo "php83 MemoryLimit ($mem >= 512M)"
+fi
