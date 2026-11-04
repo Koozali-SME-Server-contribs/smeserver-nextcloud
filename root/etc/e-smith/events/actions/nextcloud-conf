@@ -24,9 +24,9 @@ sed -i /usr/share/nextcloud/config/config.php -e "s#localhost:/var/lib/mysql/mar
 
 # need to check what db we are supposed to use. starting NC 21 mariadb >= 102 is needed  core is 55
 # are we fresh install or update ?
-installed=$(/usr/bin/occ status --output json |jq -r '.installed')
+installed=$(/usr/bin/occ status --output json |jq -r '.installed' 2>/dev/null)
 # what version
-majversion=$(/usr/bin/occ status --output json |jq -r '.version'|cut -d'.' -f1)
+majversion=$(/usr/bin/occ status --output json |jq -r '.version' 2>/dev/null |cut -d'.' -f1)
 
 # initialize grants mysql nextcloud database
 /usr/bin/mariadb --defaults-file=/root/.my.cnf $socket -e "CREATE DATABASE IF NOT EXISTS $dbname;"
@@ -36,17 +36,17 @@ majversion=$(/usr/bin/occ status --output json |jq -r '.version'|cut -d'.' -f1)
 res=`/usr/bin/mariadb --defaults-file=/root/.my.cnf $socket -e "select count(*) from information_schema.tables where table_type = 'BASE TABLE' and table_schema = '$dbname'" | tail -n1`;
 
 #TODO : SME11 we need to see if db nextcloud exist
-# if not we must check if /home/e-smith/db/mariadb105/nexcloud.dump exists and import it
-# if not  we must check if /home/e-smith/db/mysql/nexcloud.dump exists and import it
+# if not we must check if /home/e-smith/db/mariadb105/nextcloud.dump exists and import it
+# if not  we must check if /home/e-smith/db/mysql/nextcloud.dump exists and import it
 ## those might be skipped if the /usr/share/nextcloud had to be created
 if [[ $res == '0' ]]; then
-  if  [ -f /home/e-smith/db/mariadb105/nexcloud.dump ]; then
-     echo "Mariadb database empty and there was a backup in /home/e-smith/db/mariadb105/nexcloud.dump; restoring it ..."
-     /usr/bin/mariadb --defaults-file=/root/.my.cnf $socket $dbname < /home/e-smith/db/mariadb105/nexcloud.dump && mv /home/e-smith/db/mariadb105/nexcloud.dump /home/e-smith/files/nextcloud/data/mariadb105-nexcloud.dump
+  if  [ -f /home/e-smith/db/mariadb105/nextcloud.dump ]; then
+     echo "Mariadb database empty and there was a backup in /home/e-smith/db/mariadb105/nextcloud.dump; restoring it ..."
+     /usr/bin/mariadb --defaults-file=/root/.my.cnf $socket $dbname < /home/e-smith/db/mariadb105/nextcloud.dump && mv /home/e-smith/db/mariadb105/nextcloud.dump /home/e-smith/files/nextcloud/data/mariadb105-nextcloud.dump
      /usr/bin/occ upgrade -n
-  elif [ -f /home/e-smith/db/myslq/nexcloud.dump ]; then
-     echo "Mariadb database empty and there was a backup in /home/e-smith/db/myslq/nexcloud.dump; restoring it ..."
-     /usr/bin/mariadb --defaults-file=/root/.my.cnf $socket $dbname < /home/e-smith/db/mariadb105/nexcloud.dump
+  elif [ -f /home/e-smith/db/myslq/nextcloud.dump ]; then
+     echo "Mariadb database empty and there was a backup in /home/e-smith/db/myslq/nextcloud.dump; restoring it ..."
+     /usr/bin/mariadb --defaults-file=/root/.my.cnf $socket $dbname < /home/e-smith/db/mariadb105/nextcloud.dump
      /usr/bin/occ upgrade -n
   else  
       echo "Fresh install detected, starting occ maintenance:install procedure..."
@@ -62,8 +62,8 @@ if [[ $res == '0' ]]; then
   fi
 else
   echo "We are reinstalling Nextcloud with an already populated mariadb database"
-  if  [ -f /home/e-smith/db/mariadb105/nexcloud.dump ]; then
-      echo "if you did a SME10 to SME11 migration: /home/e-smith/db/mariadb105/nexcloud.dump has been detected !!!"
+  if  [ -f /home/e-smith/db/mariadb105/nextcloud.dump ]; then
+      echo "if you did a SME10 to SME11 migration: /home/e-smith/db/mariadb105/nextcloud.dump has been detected !!!"
       echo " ! check that you did not also migrate an older nextcloud.dump from SME10 mariadb 5.5 !"
   fi
   echo "Trying to upgrade"

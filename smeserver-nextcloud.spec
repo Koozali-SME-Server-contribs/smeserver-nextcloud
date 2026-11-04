@@ -1,4 +1,4 @@
-%define release 40
+%define release 41
 %define version 1.2.0
 
 Summary: Koozali SME Server Nextcloud configuration
@@ -85,6 +85,9 @@ cat %{name}-%{version}-filelist
 
 
 %changelog
+* Tue Nov 03 2026 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-41.sme
+- fix typo to restore mariadb dump [SME: 13810]
+
 * Sat Jan 24 2026 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-40.sme
 - fix SME10 migration needs update mariadb socket path [SME: 13404]
 
