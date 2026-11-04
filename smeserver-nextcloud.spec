@@ -1,4 +1,4 @@
-%define release 41
+%define release 42
 %define version 1.2.0
 
 Summary: Koozali SME Server Nextcloud configuration
@@ -76,6 +76,7 @@ mkdir -p root/var/log/php/nextcloud
  --file "/etc/sudoers.d/90_nextcloud" "attr(0440,root,root)" \
  --file /usr/bin/occ 'attr(0755,root,root)'\
  --file /usr/bin/nc_dbupdate 'attr(0755,root,root)'\
+ --file /usr/bin/nc_upgrade 'attr(0755,root,root)'\
  > %{name}-%{version}-filelist
 
 cat %{name}-%{version}-filelist
@@ -85,6 +86,9 @@ cat %{name}-%{version}-filelist
 
 
 %changelog
+* Tue Nov 03 2026 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-42.sme
+- fix nc_upgrade perms [SME: 13507]
+
 * Tue Nov 03 2026 Jean-Philippe Pialasse <jpp@koozali.org> 1.2.0-41.sme
 - fix typo to restore mariadb dump [SME: 13810]
 
